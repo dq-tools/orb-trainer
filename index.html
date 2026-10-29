@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>虹色のオーブ 鍛冶トレーナー</title>
+<meta name="description" content="ドラクエ10 道具鍛冶「虹色のオーブ」の練習シミュレータ。学習した AI が次の一手と大成功の見込みを教えてくれる。ブラウザだけで動く（サーバー不要）。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=2026-10-29a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='30%25'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.4' stop-color='%23c4b5fd'/%3E%3Cstop offset='1' stop-color='%238b5cf6'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='46' fill='url(%23g)'/%3E%3C/svg%3E">
+<!-- ▼ 広告: head（AdSense の <script async src="https://pagead2.googlesyndication.com/..."> をここに置く） -->
+<!-- ▲ 広告: head -->
+</head>
+<body>
+<div id="loading" class="loading"><div class="box"><div class="orb big"></div><div id="loadMsg">読み込み中…</div><div class="lbar"><i id="loadBar"></i></div><div class="lnote">AI（Python）をブラウザの中で動かします。2 回目からは速く開きます。</div></div></div>
+<div class="wrap">
+<header>
+  <div class="orb"></div>
+  <h1>虹色のオーブ 鍛冶トレーナー<small>DQ10 道具鍛冶 ・ 学習した AI が次の一手を提案</small></h1>
+  <div class="tabs"><button id="tabSim" class="on">シミュ</button><button id="tabReal">実機モード</button></div>
+</header>
+<div class="premise"><span>前提: 職人 <b>Lv80</b>（上限）</span><span>ハンマー: <b>光の鍛冶ハンマー★3</b>（会心+4.6%・集中+45）</span><span>開始の集中力 <b>253</b></span><span>道具会心率 <b>6.2%</b>（ハンマー 4.6 ＋ 会心アップ 0.6 ＋ コツ 1.0）・ねらい系は 7 倍</span></div>
+<!-- ▼ 広告: TOP（横長バナー）。AdSense のユニットに置き換える -->
+<div class="ad-placeholder ad-top"><span>広告枠 TOP</span></div>
+<!-- ▲ 広告: TOP -->
+
+<div id="viewSim" class="layout">
+<div class="sticky" id="sticky"><div class="mv"><span>AI の提案</span><b id="stMv">—</b></div><div class="p" id="stP"></div><button class="btn primary" id="stPlay">打つ</button></div>
+  <div>
+    <div class="card">
+      <h2>盤面 <span class="pill" id="turnPill">手番 0</span></h2>
+      <div class="status">
+        <div class="stat temp"><div class="k">温度</div><div class="v"><span id="temp">1000</span><small>℃</small></div></div>
+        <div class="stat focus"><div class="k">集中力</div><div class="v"><span id="focus">253</span><small>/<span id="focusMax">253</span></small></div><div class="bar"><i id="focusBar" style="width:100%"></i></div></div>
+        <div class="stat"><div class="k">必殺</div><div class="v" id="hissatsu" style="font-size:15px;padding-top:6px">なし</div></div>
+        <div class="stat"><div class="k">次の再生</div><div class="v" id="regen" style="font-size:15px;padding-top:6px">—</div></div>
+      </div>
+      <div id="selbar" class="selbar" style="display:none"><span>選択中:</span><b id="selName"></b><span id="selHint" style="color:var(--muted)"></span><button id="selCancel">✕ 取り消し</button></div>
+      <div class="board" id="board"></div>
+      <div class="groups" id="groups"></div>
+      <div id="skillsBox"></div>
+      <div class="actions">
+        <button class="btn" id="undo">↶ 1手戻す</button>
+        <button class="btn warn" id="finish">しあげる</button>
+        <button class="btn" id="newGame">✦ 新しい局</button>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card ai">
+      <h2>AI の提案 <span class="pill" id="aiModel">学習型</span></h2>
+      <div class="now"><b id="pVal">—</b><span>この局面の大成功の見込み（AI が打ち続けた場合）</span></div><div class="now sub"><b id="pNow">—</b><span>今しあげた時</span></div>
+      <div id="recs"><div class="wait">考え中</div></div>
+      <div class="actions"><button class="btn primary" id="playTop">🤖 AI の一手を打つ</button><button class="btn" id="autoBtn">▶ 最後まで AI</button></div>
+      <p class="hint-text" style="margin:10px 0 0">提案は上位 2 手。「その手を打った後の大成功の見込み」の高い順で、終盤は全分岐を数え上げた厳密値（<b>厳密解</b>）になります。計算 <span id="aiTime">—</span></p>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>記録 <span class="pill">棋譜 <span id="kifuCount">0</span> 行 <button class="link" id="kifuDl">↓ TSV</button></span></h2><div class="log" id="log"></div></div>
+    <!-- ▼ 広告: SIDE（レクタングル） -->
+    <div class="ad-placeholder ad-side"><span>広告枠 SIDE</span></div>
+    <!-- ▲ 広告: SIDE -->
+  </div>
+</div>
+
+<div id="viewReal" class="layout" style="display:none">
+  <div>
+    <div class="card">
+      <h2>実機の盤面を入力</h2>
+      <p class="hint-text" style="margin:0 0 12px">ゲームの「くわしくみる」の数字をそのまま入れて <b>AI に聞く</b>。本会心で止まったマスは「本会心済」にチェック。</p>
+      <div class="form" id="realForm">
+        <div><label>温度（℃）</label><select id="rTemp"></select></div>
+        <div><label>残り集中力</label><input id="rFocus" type="number" min="0" max="300" value="253" inputmode="numeric"></div>
+        <div class="full"><label>必殺（ヘパイトスの炎）</label><select id="rHiss"><option value="none">なし</option><option value="charged">チャージ済（まだ押していない）</option><option value="armed">押した直後（次の1打が会心確定）</option><option value="used">使用済</option></select></div>
+        <div class="full" style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="rCells"></div>
+        <div class="full actions" style="margin-top:4px"><button class="btn primary" id="askBtn">🤖 AI に聞く</button><button class="btn" id="rReset">リセット</button></div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card ai">
+      <h2>AI の提案</h2>
+      <div class="now"><b id="rPVal">—</b><span>この局面の大成功の見込み（AI が打ち続けた場合）</span></div><div class="now sub"><b id="rPNow">—</b><span>今しあげた時</span></div>
+      <div id="rRecs"><div class="hint-text">盤面を入れて「AI に聞く」を押してください。</div></div>
+      <p class="hint-text" style="margin:10px 0 0">打った結果（出目・会心）をゲームで確認したら、数字を入れ直してもう一度聞く、の繰り返しで使えます。</p>
+    </div>
+    <!-- ▼ 広告: SIDE（実機モード側） -->
+    <div class="ad-placeholder ad-side"><span>広告枠 SIDE</span></div>
+    <!-- ▲ 広告: SIDE -->
+  </div>
+</div>
+
+<!-- ▼ 広告: BOTTOM -->
+<div class="ad-placeholder ad-bottom"><span>広告枠 BOTTOM</span></div>
+<!-- ▲ 広告: BOTTOM -->
+<footer>前提: 職人 Lv80・光の鍛冶ハンマー★3・開始集中 253・道具会心率 6.2%（ねらい系 7 倍）。理想値（基準値のどこで止まるか）は範囲内で毎回ランダム、大成功は誤差合計 7 以下、はみ出しは 9 扱い。AI の見込みはシミュレータ上の推定です。<br>
+AI と局の進行はすべてこのブラウザの中（Pyodide）で動き、サーバーには何も送りません。棋譜と進行中の局はこの端末のブラウザにだけ保存されます。<br>
+本サイトは非公式のファンメイドツールです。「ドラゴンクエストX」は株式会社スクウェア・エニックスの登録商標です。<br>
+<a href="https://github.com/" id="ghLink" rel="noopener">ソースコード（GitHub）</a> ・ © orb trainer</footer>
+</div>
+<div class="toast" id="toast"></div>
+<div class="result" id="result"><div class="box"><div style="font-size:12px;color:var(--muted);letter-spacing:.2em">RESULT</div><h3 id="resGrade">大成功</h3><p id="resText"></p><button class="btn primary" id="resNew">✦ 次の局へ</button> <button class="btn" id="resClose">盤面を見る</button></div></div>
+<script src="app.js?v=2026-10-29a"></script>
+</body></html>
