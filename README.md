@@ -1,6 +1,6 @@
 # 虹色のオーブ 鍛冶トレーナー
 
-**公開ページ: https://dq-tools.github.io/orb-trainer/**（[らんぷーの道具箱](https://dq-tools.github.io/) の 1 つ）
+**公開ページ: https://dq-tools.github.io/orb-trainer/**
 
 ドラゴンクエストX の道具鍛冶「虹色のオーブ」を練習するためのシミュレータです。
 学習した AI（評価関数＋終盤の厳密解）が、毎手「次の一手」と「大成功の見込み」を教えてくれます。
