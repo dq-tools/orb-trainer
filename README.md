@@ -49,6 +49,8 @@ python -m http.server 8765
 `index.html` の `<!-- ▼ 広告: … -->` 〜 `<!-- ▲ 広告: … -->` の間を差し替えます（head / TOP / SIDE×2 / BOTTOM）。
 差し替えるまでは点線の枠が出ます。枠ごと消してもレイアウトは崩れません。
 
+公開したら、`index.html` の末尾にある「ソースコード（GitHub）」のリンク先（`id="ghLink"`）をリポジトリの URL に変えてください。
+
 ## 更新する時
 
 `py/` の中身や `model.npz` を変えたら、`worker.js` と `app.js` と `index.html` の `VERSION`（`?v=…`）を変えてください。ブラウザのキャッシュが新しいファイルを取りに行きます。
