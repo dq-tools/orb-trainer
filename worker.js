@@ -3,7 +3,7 @@
    起動の進み具合は {type:"progress"}、起動完了は {type:"ready"}、起動失敗は {type:"fatal"} で知らせる */
 // 0.29 系の最新を使う。314.x 系（2026 時点の最新）は importScripts で読めない（NetworkError、2026-10-29 に Chromium で確認）
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.29.5/full/";
-const VERSION = "2026-10-29c";   // py/ や model.npz を変えたらここも変える（ブラウザのキャッシュ避け）
+const VERSION = "2026-10-29d";   // py/ や model.npz を変えたらここも変える（ブラウザのキャッシュ避け）
 const PY_FILES = ["kaji_data.py", "kaji_sim.py", "recipes.py", "recipes.json", "kaji_feat.py", "value_net.py", "run_amatsuyu.py",
                   "endgame_solver.py", "finish_lookahead.py", "value_policy.py", "orb_core.py"];
 

@@ -1,5 +1,5 @@
 /* 虹色のオーブ トレーナー: 画面側。AI と局の進行は worker.js（Python）に任せ、ここは表示・入力・保存（localStorage）だけ */
-const VERSION = "2026-10-29c";
+const VERSION = "2026-10-29d";
 const $ = (s) => document.querySelector(s);
 const GROUP_NAMES = { pair_v: "縦2マス", pair_lr: "横2マス", pair_diag: "ななめ2マス", quad: "2×2" };
 const GROUPS = [["single", "単体"], ["pair", "2マス"], ["quad", "面・みだれ"], ["aim", "ねらい（会心7倍）"], ["temp", "温度・必殺"]];

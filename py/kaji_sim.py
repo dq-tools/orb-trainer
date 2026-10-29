@@ -53,6 +53,11 @@ ASSUMPTIONS = {
     "event_bonus_mult": 4.0,  # 光マス/会心アップターン: 倍率に +4（→単独5倍、ねらいと併用で11倍）
     "modori_rate": 1.0,       # 再生（旧称 戻り）: 打った後に 200℃の倍数になった時、範囲外のマスがあれば毎回起きる（GJさん棋譜 3 局で確認）
     "modori_amount": (12, 16),  # 戻る量（GJさん配信 P9yRMJLHreA の緑の数字 12〜16）
+    # まれに集中力回復（職人 Lv70 の特技。行動の後に集中が 10 以下だと低確率で 30 回復。画面は白く光って「+30」「なんと 集中力が 回復した！」。
+    # 2026-10-29 mori1 本人の録画 よろい上 8 局目で判明。本物の棋譜の鍛冶 160 機会中 9 回 ≈ 5.6%（⚠仮。防具 3/34・道具 6/110・武器 0/16））
+    "focus_recover_p": 0.056,
+    "focus_recover_below": 10,
+    "focus_recover_amount": 30,
     "light_rate": 1.0,        # 光特性: 200の倍数到達時にどこかが光る確率（mori1さん確認: 100%。2026-09-04）
     # 理想値（会心で止まる値）のばらつき。"zone"=基準値の範囲全体から一様（mori1さん 2026-10-17:
     # 「どこが基準値になるかはランダム」。実配信で超あまつゆA 180-190 が下端180で会心停止）。
@@ -366,6 +371,11 @@ class Sim:
             for i, name in enumerate(targets):
                 results.append((name, *self.hit_one(name, s["mult"], s["crit"], forced)))
         self.focus -= cost
+        # まれに集中力回復（Lv70 特技）: 行動の後に集中が focus_recover_below 以下なら低確率で +30（2026-10-29、本物の棋譜 9/160）
+        if (self.focus <= ASSUMPTIONS["focus_recover_below"] and not self.deterministic
+                and self.rng.random() < ASSUMPTIONS["focus_recover_p"]):
+            self.focus = min(ASSUMPTIONS["focus_max"], self.focus + ASSUMPTIONS["focus_recover_amount"])
+            self.focus_recovered = getattr(self, "focus_recovered", 0) + 1
         hit_temp = self.temp
         self.temp = max(0, self.temp + s["dtemp"])
         # 再生（戻り）: 行動の後の温度が 200℃の倍数になると、範囲外でいちばん割合が進んだマスが 12〜16 戻る（mori1さん 2026-10-19、GJさん棋譜 8・10・13局で確認）。
