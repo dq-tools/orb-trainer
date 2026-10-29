@@ -368,8 +368,9 @@ class Sim:
         self.focus -= cost
         hit_temp = self.temp
         self.temp = max(0, self.temp + s["dtemp"])
-        # 再生（戻り）: 打った後の温度が 200℃の倍数になると、範囲外でいちばん割合が進んだマスが 12〜16 戻る（mori1さん 2026-10-19、GJさん棋譜 8・10・13局で確認）
-        if self.trait in MODORI_TRAITS and results and self.temp % 200 == 0 and self.temp > 0 and not self.deterministic                 and self.rng.random() < ASSUMPTIONS["modori_rate"]:
+        # 再生（戻り）: 行動の後の温度が 200℃の倍数になると、範囲外でいちばん割合が進んだマスが 12〜16 戻る（mori1さん 2026-10-19、GJさん棋譜 8・10・13局で確認）。
+        # 冷やし込み・火力上げ（マスに当たらない行動）でも起きる（2026-10-29 mori1 指摘。本物の棋譜 7 例中 7 例＝アメリー 6・クマタロー 1 で再生あり。以前は「打撃の後だけ」としていた＝誤り）
+        if self.trait in MODORI_TRAITS and self.temp % 200 == 0 and self.temp > 0 and not self.deterministic                 and self.rng.random() < ASSUMPTIONS["modori_rate"]:
             # 範囲に入っていないマスのうち、割合がいちばん進んだマス（範囲内のマスは戻らない。GJさん 8局目で全マス範囲内の 800℃は戻りなし）
             cand = [n for n in self.cells if not (self.cells[n].lo <= self.cells[n].v <= self.cells[n].hi)]
             name = max(cand, key=lambda n: self.cells[n].v / max(1, self.cells[n].center)) if cand else None
