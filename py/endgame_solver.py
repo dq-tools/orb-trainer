@@ -25,6 +25,10 @@ MAX_NODES = 60000       # 状態数の上限（超えたら先読みにフォー
 
 class TooBig(Exception):
     pass
+REGEN = True            # 再生の地金: 行動後の温度が 200℃ の倍数なら「範囲外で割合が最大のマスが 12〜16 戻る」を分岐に入れ、
+                        # 戻せる見込みのある「はみ出す手」も候補にする（mori1 2026-10-29「厳密解を頑張りましょう」。
+                        # きっかけ: 950℃・集中 38 で B 142/140-148 にねらい→冷やし込み→600℃ の再生で 44%→54% の局面を見落としていた）
+REGEN_OVER_MAX = 16     # はみ出す手を候補にする上限（非会心の最大の目で上限をこれ以上超える手は入れない。戻りの最大 16 で範囲に戻れる分だけ）
 K_OFFSETS = (-2, -1, 0, 1, 2)
 FULL_MASK = 0b11111
 SINGLE = ("たたく", "てかげん打ち", "2倍打ち", "3倍打ち", "熱風おろし", "ねらい打ち", "弱ねらい打ち")
@@ -48,8 +52,22 @@ class Solver:
         self.pairs = {"上下ねらい打ち": sim.pairs_v, "上下打ち": sim.pairs_v,
                       "左右打ち": sim.pairs_lr, "ななめ打ち": sim.pairs_diag}
         self.quads = list(sim.quads)
+        self.regen = REGEN and sim.trait in KS.MODORI_TRAITS
+        self.zc = [(sim.cells[n].lo + sim.cells[n].hi) // 2 for n in self.names]   # 再生の対象の決め方（kaji_sim: v / center）に使う中央
         self.memo = {}
         self.nodes = 0
+
+    def _regen_possible(self, t2, f2):
+        """この行動の後（温度 t2・集中 f2）に再生を起こせるか: t2 が 200 の倍数、または 冷やし込み／火力上げ 1 回で 200 の倍数に乗せられる"""
+        if not self.regen:
+            return False
+        if t2 > 0 and t2 % 200 == 0:
+            return True
+        if t2 >= 350 and t2 - 300 > 0 and (t2 - 300) % 200 == 0 and f2 >= cost_of("冷やし込み", self.trait, t2):
+            return True
+        if t2 <= 400 and (t2 + 300) % 200 == 0 and f2 >= cost_of("火力上げ", self.trait, t2):
+            return True
+        return False
 
     def _ideal(self, i, k):
         return max(self.lo[i], min(self.hi[i], self.center[i] + k))
@@ -166,30 +184,38 @@ class Solver:
         if charged and not armed and self._hissatsu_ok(temp, focus, cells, z):
             acts.append(("必殺", ()))
 
-        def safe(i, mk):
+        def safe(i, mk, regen_ok=False):
             v, mask = cells[i]
             if self._pinned(i, v, mask):
                 return armed  # 本会心済み: 通常は触らない。必殺装填中は Miss なので面技の巻き込みOK
             dmax = math.ceil(dmg_candidates(temp, mk)[-1] * z * (2.0 if i == lit else 1.0))
+            if regen_ok and v <= self.hi[i]:
+                # 再生で戻せる見込みのある手: 非会心の最大の目で上限を REGEN_OVER_MAX まで超えてよい（範囲内のマスでも可。
+                # 会心なら理想値で止まり、外れて飛び出しても 200 の倍数の再生で戻る＝アメリーさんの「再生の直前のねらい」）
+                return v + dmax <= self.hi[i] + REGEN_OVER_MAX
             return v + dmax <= self.hi[i] and v < self.center[i] + 2
 
         for sk in SINGLE:
-            if focus < cost_of(sk, self.trait, temp):
+            cost = cost_of(sk, self.trait, temp)
+            if focus < cost:
                 continue
             mk = SKILLS[sk]["mult"]
             bulk = sk in ("熱風おろし", "3倍打ち", "2倍打ち")
+            rg = self._regen_possible(max(0, temp + SKILLS[sk]["dtemp"]), focus - cost)
             for i in range(len(cells)):
                 if not bulk and self.center[i] - cells[i][0] > BULK_R:
                     continue  # 遠いマスは運搬技のみ
-                if safe(i, mk):
+                if safe(i, mk, rg):
                     acts.append((sk, (i,)))
         for sk in PAIR:
-            if focus < cost_of(sk, self.trait, temp):
+            cost = cost_of(sk, self.trait, temp)
+            if focus < cost:
                 continue
             mk = SKILLS[sk]["mult"]
+            rg = self._regen_possible(max(0, temp + SKILLS[sk]["dtemp"]), focus - cost)
             for g in self.pairs[sk]:
                 ii = tuple(self.idx[n] for n in g)
-                if all(safe(i, mk) for i in ii):
+                if all(safe(i, mk, rg) for i in ii):
                     acts.append((sk, ii))
         if temp >= 350 and focus >= cost_of("冷やし込み", self.trait, temp):
             acts.append(("冷やし込み", ()))
@@ -216,6 +242,23 @@ class Solver:
         return best_v
 
     def _after(self, t2, f2, cur, charged, armed):
+        """行動後の分岐: 再生（温度が 200 の倍数なら範囲外で割合が最大のマスが 12〜16 戻る）→ 発光（光特性）。"""
+        if self.regen and t2 > 0 and t2 % 200 == 0:
+            cand = [i for i, (v, _m) in enumerate(cur) if not (self.lo[i] <= v <= self.hi[i])]
+            if cand:
+                tgt = max(cand, key=lambda i: cur[i][0] / max(1, self.zc[i]))
+                pr = ASSUMPTIONS["modori_rate"]
+                a, b = ASSUMPTIONS["modori_amount"]
+                tot = (1.0 - pr) * self._after_light(t2, f2, cur, charged, armed) if pr < 1.0 else 0.0
+                v, mask = cur[tgt]
+                for back in range(a, b + 1):
+                    c2 = list(cur)
+                    c2[tgt] = (max(0, v - back), mask)   # 理想値の信念は変わらない（本会心済みは範囲内なので対象にならない）
+                    tot += pr / (b - a + 1) * self._after_light(t2, f2, tuple(c2), charged, armed)
+                return tot
+        return self._after_light(t2, f2, cur, charged, armed)
+
+    def _after_light(self, t2, f2, cur, charged, armed):
         """行動後の発光分岐（光特性: 温度が200の倍数なら light_rate でゾーン外のマスが光る）。"""
         if self.trait != "光" or t2 <= 0 or t2 % 200 != 0:
             return self.value(t2, f2, cur, charged, armed, -1)
