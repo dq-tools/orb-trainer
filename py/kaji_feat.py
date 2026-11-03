@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""鍛冶の局面 → 評価関数（value_net）の入力。商材に依存しない「まとめた状態認識」（2026-10-27、mori1 の案）。
+"""鍛冶の局面 → 評価関数（value_net）の入力。商材に依存しない「まとめた状態認識」（2026-10-27、作者 の案）。
 
 数値をそのまま見せず、各マスを「今の温度の出目で何が起きるか」で表す:
   倍率ごと（x0.5/x0.8/x1.0/x1.2/x2.0/x2.5/x3.0）に
@@ -31,7 +31,7 @@ FG = 26
 MAX_CELLS = 9
 AIM_CRIT_TURN_ONLY = __import__("os").environ.get("KAJI_AIM_CRIT_TURN", "0") == "1"   # 集中力変化の少マスで ねらい系を会心ターンに限る（試験）
 AIM_CRIT_TURN_MAX_CELLS = 3
-AIM_WIDE_ONLY = False  # 広い（平均幅より広い）未確定マスに単体のねらいが打てる時は、狭いマスへの単体ねらいを外す（mori1 2026-10-28「狙う場所で差がある」の実験）
+AIM_WIDE_ONLY = False  # 広い（平均幅より広い）未確定マスに単体のねらいが打てる時は、狭いマスへの単体ねらいを外す（作者 2026-10-28「狙う場所で差がある」の実験）
 MACRO_TEMP = True   # legal_moves に 火力上げ×k / 冷やし込み×k（k=2..4）のまとめ手を入れる
 
 _DICE = {}
@@ -241,7 +241,7 @@ def legal_moves(sim: Sim):
         if tg == "none":
             if skill == "火力上げ" and sim.temp >= 2000:
                 continue
-            if skill == "冷やし込み" and sim.temp <= 300:     # 300 → 0 ℃は終了になるので候補にしない（2026-10-31 mori1）
+            if skill == "冷やし込み" and sim.temp <= 300:     # 300 → 0 ℃は終了になるので候補にしない（2026-10-31 作者）
                 continue
             out.append((skill, ()))
             # まとめ手（火力上げ×k / 冷やし込み×k）: 温度を目当ての所へ持っていく「投資」を 1 手読みでも比べられるようにする（2026-10-27）。
@@ -292,7 +292,7 @@ def legal_moves(sim: Sim):
             if not bad:
                 out.append((skill, tuple(grp)))
     if AIM_CRIT_TURN_ONLY and not armed and _trait_name(sim.trait) == "集中力変化" and len(cells) <= AIM_CRIT_TURN_MAX_CELLS:
-        # 集中力変化の少マス（こて等、誤差 2）: ねらい系は会心率アップの手番（400n+200）だけ（2026-10-31 mori1「少ないマスは会心でぴったり」。
+        # 集中力変化の少マス（こて等、誤差 2）: ねらい系は会心率アップの手番（400n+200）だけ（2026-10-31 作者「少ないマスは会心でぴったり」。
         # こて 100 局: 失敗局は会心ターン以外のねらい系が多い 1.39 対 0.96）
         from kaji_sim import is_crit_turn
         if not is_crit_turn(sim.trait, sim.temp):

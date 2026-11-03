@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""虹色のオーブ専用の方針（アメリーさん型、2026-10-26。mori1 依頼・kaji-kaisetsu 経由）。
+"""虹色のオーブ専用の方針（定石、2026-10-26。作者 依頼・kaji-kaisetsu 経由）。
 
 盤面 A B / C D / E F（A・F 85〜95、B・D 140〜148、C・E 115〜121、再生）。
 芯: 「会心が出なければ範囲に入らずに止まり、会心が出れば理想値で止まる」距離（狙い距離）に、マスを少ない手数で持っていく。
@@ -32,17 +32,17 @@ PAIR_MIN_TEMP = 800        # 上下打ちで寄せる温度の下限
 MATCH_TOL = 12             # 相棒との差がこれ以下なら「揃った」
 AIM_MIN_TEMP = 700         # ねらい打ち（x1.0）を使う温度の下限。以下は弱ねらい/てかげん（先読みに任せる）
 STEP2_FALLBACK = True      # 【既定 ON 2026-10-26: 5 手目の一致 51→72%、大成功 1000 局 74.1→75.0（±0）】 1500℃ の 4連が打てない時（開幕の会心で C/D が範囲に入った・角が進みすぎた）: 反対の側の 4連 → 当たっていないマスのペア技（ななめ DE・上下 CE・左右 EF…）。
-                           # アメリーさんの 5 手目（80 局）: C が会心なら ななめ DE（13）、D が会心なら 上下 CE/左右 EF（8）、片方の角が進んでいても遅れた側に 4連（2026-10-26）
-AMELIE_OPENING = False     # アメリーさんの固定手順（80 局の 6〜8 手目の多数派、2026-10-26 mori1「固定化されている所は固定して」）:
+                           # 配信者Aの 5 手目（80 局）: C が会心なら ななめ DE（13）、D が会心なら 上下 CE/左右 EF（8）、片方の角が進んでいても遅れた側に 4連（2026-10-26）
+AMELIE_OPENING = False     # 配信者Aの固定手順（80 局の 6〜8 手目の多数派、2026-10-26 作者「固定化されている所は固定して」）:
                            # 1450℃ 熱風 B（B が遅れていなければ E）→ 1300℃ 上下打ち BD（打てなければ たたく B）→ 1250℃ 熱風 E → 以後は通常の方針。角のねらいは 1100℃ 以下まで待つ
-STEP2_MARGIN = 0           # 【既定 0。6 だと 4連を避けすぎて一致 62%】 1500℃ の 4連: 各マスが打った後も下限までこれだけ残る側だけ（アメリーさんは C が 84 以上だと 4連を避けて ななめ DE。2026-10-26）
+STEP2_MARGIN = 0           # 【既定 0。6 だと 4連を避けすぎて一致 62%】 1500℃ の 4連: 各マスが打った後も下限までこれだけ残る側だけ（配信者Aは C が 84 以上だと 4連を避けて ななめ DE。2026-10-26）
 STEP2_TIE = "F8"           # 【既定 "F8" 2026-10-26】 1500 の 4連で A と F の進みが同じ時にどちらの側へ打つか（"A"／"F"／"far"=角の残りが大きい側）
-CORNER_HEAT = False        # 遅れている角（A・F）も熱風で狙い距離の手前まで運ぶ（アメリーさん: 1050 熱風 F → 900 ねらい F。AI は F へのねらいが A より 16% 少ない。2026-10-26 mori1「F へのねらいが低い」）
+CORNER_HEAT = False        # 遅れている角（A・F）も熱風で狙い距離の手前まで運ぶ（配信者A: 1050 熱風 F → 900 ねらい F。AI は F へのねらいが A より 16% 少ない。2026-10-26 作者「F へのねらいが低い」）
 CORNER_HEAT_MIN_TEMP = 900
-CORNER_FIRST = False       # 幅の広い角（A・F、幅 11）は単体のねらいで取りに行く: 狙い距離に入った角があれば上下ねらい・他のマスより先にねらい、本会心にならなくても CORNER_TRIES 回まで続ける（mori1 2026-10-26「明確に幅の広い所をねらいで」）
+CORNER_FIRST = False       # 幅の広い角（A・F、幅 11）は単体のねらいで取りに行く: 狙い距離に入った角があれば上下ねらい・他のマスより先にねらい、本会心にならなくても CORNER_TRIES 回まで続ける（作者 2026-10-26「明確に幅の広い所をねらいで」）
 CORNER_TRIES = 2
 CORNER_FIRST_MIN_TEMP = 500
-CORNER_FIRST_MAX_TEMP = 10 ** 9   # アメリーさんは F を 700〜1050℃ でねらう（1450℃ の直後は A だけ）。上限を 1050 にすると高温の角ねらいを待つ
+CORNER_FIRST_MAX_TEMP = 10 ** 9   # 配信者Aは F を 700〜1050℃ でねらう（1450℃ の直後は A だけ）。上限を 1050 にすると高温の角ねらいを待つ
 
 
 def corner_first_move(sim: Sim):
@@ -59,7 +59,7 @@ def corner_first_move(sim: Sim):
         if best is None or key > best[0]:
             best = (key, n)
     return ("ねらい打ち", (best[1],)) if best else None
-CORNER_AIM_MIN_TEMP = 1200 # 角（A・F）が狙い距離なら高温のうちにねらう温度の下限（99999 で無効＝アメリーさんは 1400〜1200 は熱風で運ぶ。2026-10-26 50 局の不一致 56 件）
+CORNER_AIM_MIN_TEMP = 1200 # 角（A・F）が狙い距離なら高温のうちにねらう温度の下限（99999 で無効＝配信者Aは 1400〜1200 は熱風で運ぶ。2026-10-26 50 局の不一致 56 件）
 
 
 def _dm(sim: Sim, n: str, mk: str):
@@ -78,7 +78,7 @@ AIM_RESCUE_ORB = False   # 狙い距離の判定でも、再生で救えるは�
 
 def in_aim(sim: Sim, n: str, mk: str) -> bool:
     """狙い距離: 非会心の最大でも上限を超えず（範囲に入るのは可）、会心（2 倍）の最小で下限に届く。
-    （アメリーさん 1 局目 1100℃ の上下ねらい BD は B 残 19・D 残 18 で出目 17〜24＝非会心が範囲に入る目も許容している）"""
+    （配信者A 1 局目 1100℃ の上下ねらい BD は B 残 19・D 残 18 で出目 17〜24＝非会心が範囲に入る目も許容している）"""
     c = sim.cells[n]
     if c.pinned or c.in_zone or c.v > c.hi:
         return False
@@ -152,7 +152,7 @@ def ce_center_move(sim: Sim):
     return None
 
 
-CE_EARLY = False        # C・E を早く範囲に入れて再生の対象から外す（mori1 2026-10-26 の次の案）。2 手先までの着地の見込みで「はみ出さず範囲に入る確率」が CE_EARLY_P 以上の手を打つ
+CE_EARLY = False        # C・E を早く範囲に入れて再生の対象から外す（作者 2026-10-26 の次の案）。2 手先までの着地の見込みで「はみ出さず範囲に入る確率」が CE_EARLY_P 以上の手を打つ
 CE_EARLY_TEMP = 1300    # この温度以下で発動（全マスに手が入ってから）
 CE_EARLY_P = 0.8        # 範囲に入る確率のしきい値
 CE_EARLY_POS = "late"   # "late"=ねらいの前（4b の後）／"early"=熱風でそろえる前（3 の前）
@@ -222,7 +222,7 @@ def ce_early_plan(sim: Sim):
     return None
 
 
-AIM_RESET = False          # アメリーさんの「範囲内（か下限の少し下）のマスに、再生の直前にねらい」: 会心なら理想で止まり、外れてもはみ出した分を次の 200℃ の倍数の再生（−12〜16）が戻す。
+AIM_RESET = False          # 配信者Aの「範囲内（か下限の少し下）のマスに、再生の直前にねらい」: 会心なら理想で止まり、外れてもはみ出した分を次の 200℃ の倍数の再生（−12〜16）が戻す。
                            # 60 局で 41 回（600〜1000℃、下限までの距離 −4〜+4、23 回は打った直後に再生、14 回は 1 手後）。外れた後は 弱ねらい/ねらいを打ち直す（2026-10-26）
 AIM_RESET_MIN_TEMP = 400
 AIM_RESET_MAX_TEMP = 1050
@@ -303,7 +303,7 @@ def next_move(sim: Sim, rollouts: int = ROLLOUTS):
         def quad_ok(q):
             return all(safe(sim, n, "x1.2") and not cells[n].in_zone and gap(cells[n]) - _dm(sim, n, "x1.2")[1] >= STEP2_MARGIN for n in q)
         if STEP2_TIE == "F8" and not a.pinned and not f.pinned:
-            side = ("C", "D", "E", "F") if f.v - a.v >= 8 else ("A", "B", "C", "D")   # アメリーさん: F が A より 8 以上進んでいる時だけ CDEF
+            side = ("C", "D", "E", "F") if f.v - a.v >= 8 else ("A", "B", "C", "D")   # 配信者A: F が A より 8 以上進んでいる時だけ CDEF
         if side and quad_ok(side):
             sim._orb_step2 = True
             return ("4連打ち", side)
@@ -312,7 +312,7 @@ def next_move(sim: Sim, rollouts: int = ROLLOUTS):
             if quad_ok(other):
                 sim._orb_step2 = True
                 return ("4連打ち", other)
-            # アメリーさんの型: C が高ければ ななめ DE、D が高ければ 上下 CE → 左右 EF
+            # 配信者Aの型: C が高ければ ななめ DE、D が高ければ 上下 CE → 左右 EF
             def pair_ok(skill, pr):
                 return sim.can_use(skill) and all(not cells[n].pinned and not cells[n].in_zone and safe(sim, n, "x1.2") for n in pr)
             hi_c = cells["C"].v >= cells["D"].v and (cells["C"].in_zone or gap(cells["C"]) - _dm(sim, "C", "x1.2")[1] < STEP2_MARGIN)
@@ -340,7 +340,7 @@ def next_move(sim: Sim, rollouts: int = ROLLOUTS):
             if best:
                 sim._orb_step2 = True
                 return (best[1], best[2])
-    # 2a'. アメリーさんの固定手順（1450→1300→1250）
+    # 2a'. 配信者Aの固定手順（1450→1300→1250）
     if AMELIE_OPENING and not untouched and getattr(sim, "_orb_step2", False) and 1250 <= t <= 1450:
         def heat_ok(n):
             c = cells[n]
@@ -455,7 +455,7 @@ def next_move(sim: Sim, rollouts: int = ROLLOUTS):
                     best = (score, n)
         if best:
             return ("熱風おろし", (best[1],))
-    # 4a'. 片方が狙い距離で相棒が少し遠い: 相棒をたたく/てかげんで狙い距離へ（アメリーさんの 1300 たたく D → 1100 上下ねらい BD）
+    # 4a'. 片方が狙い距離で相棒が少し遠い: 相棒をたたく/てかげんで狙い距離へ（配信者Aの 1300 たたく D → 1100 上下ねらい BD）
     if t >= PAIR_MIN_TEMP:
         for p in (("B", "D"), ("C", "E"), ("A", "C"), ("D", "F")):
             for n, m in ((p[0], p[1]), (p[1], p[0])):
@@ -475,7 +475,7 @@ def next_move(sim: Sim, rollouts: int = ROLLOUTS):
                 # 1 打で両方が狙い距離を割り込まない
                 if all(gap(cells[n]) - _dm(sim, n, "x1.2")[1] >= 0 for n in p):
                     return ("上下打ち", p)
-    # 4d. 範囲内のマスに再生前提のねらい（アメリーさん型）
+    # 4d. 範囲内のマスに再生前提のねらい（定石）
     if AIM_RESET:
         mv = aim_reset_move(sim)
         if mv is not None:
@@ -485,7 +485,7 @@ def next_move(sim: Sim, rollouts: int = ROLLOUTS):
         mv = ce_early_plan(sim)
         if mv is not None:
             return mv
-    # 5a. C・E は会心を取りに行かず真ん中（118）へ（mori1 2026-10-26「会心は CE 以外から取りに行って、最悪 CE は中央に入れる」）
+    # 5a. C・E は会心を取りに行かず真ん中（118）へ（作者 2026-10-26「会心は CE 以外から取りに行って、最悪 CE は中央に入れる」）
     if CE_CENTER:
         mv = ce_center_move(sim)
         if mv is not None:
@@ -497,7 +497,7 @@ def next_move(sim: Sim, rollouts: int = ROLLOUTS):
                 return ("ねらい打ち", (n,))
     far = [n for n in opens(sim) if is_far(sim, n, "x1.0")]
     if far and t >= HEAT_MIN_TEMP:
-        # まだ遠いマスがある: 汎用の稼ぎ（熱風/2倍/たたく を効率で）。ただし火力上げの上げ直しはしない（アメリーさん 24 局で開幕以外の火力上げは 0）
+        # まだ遠いマスがある: 汎用の稼ぎ（熱風/2倍/たたく を効率で）。ただし火力上げの上げ直しはしない（配信者A 24 局で開幕以外の火力上げは 0）
         keep = KG.REHEAT_NEED
         KG.REHEAT_NEED = 10 ** 9
         try:
@@ -575,4 +575,4 @@ if __name__ == "__main__":
         res = pool.map(_one, range(a.seed0, a.seed0 + a.n))
     g = sum(r[0] for r in res); pins = sum(r[2] for r in res) / a.n
     import os
-    print(f"## 虹色のオーブ（アメリー型 orb_policy{' ' + os.environ.get('ORB_SET') if os.environ.get('ORB_SET') else ''}） seeds{a.seed0}-{a.seed0 + a.n - 1}: 大成功 {g / a.n * 100:.1f}%  本会心 {pins:.2f}/局  平均誤差 {sum(r[1] for r in res) / a.n:.1f}  残集中 {sum(r[3] for r in res) / a.n:.0f}")
+    print(f"## 虹色のオーブ（定石 orb_policy{' ' + os.environ.get('ORB_SET') if os.environ.get('ORB_SET') else ''}） seeds{a.seed0}-{a.seed0 + a.n - 1}: 大成功 {g / a.n * 100:.1f}%  本会心 {pins:.2f}/局  平均誤差 {sum(r[1] for r in res) / a.n:.1f}  残集中 {sum(r[3] for r in res) / a.n:.0f}")

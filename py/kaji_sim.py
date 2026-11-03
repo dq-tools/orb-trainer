@@ -26,44 +26,44 @@ import kaji_data
 USE_FAKE_INFO = False   # 偽会心（会心したのに止まらなかった）で理想値候補を絞り、推定理想値・先読みの信念・厳密解に使う（2026-10-12 実験）
 K_OFFSETS = (-2, -1, 0, 1, 2)
 
-MODORI_TRAITS = ("再生", "戻り")   # 鍛冶の地金「再生」（2026-10-20 mori1: 呼び方は「再生」に統一。旧表記「戻り」も受ける）
+MODORI_TRAITS = ("再生", "戻り")   # 鍛冶の地金「再生」（2026-10-20 作者: 呼び方は「再生」に統一。旧表記「戻り」も受ける）
 
 ASSUMPTIONS = {
     # 会心基礎率 = 光ハンマー★3(4.6%) + スキル会心アップ計0.6%(Lv30で打ち止め・大辞典確認済) + コツ(1.0%)
-    # = 6.2%。フローライト氏統計モデルと整合
+    # = 6.2%。配信者G統計モデルと整合
     "crit_base": 0.062,
     "aim_crit_mult": 7.0,     # ねらい系: 道具会心率+600% → 7倍
     "great_success_max_err": 7,  # 6マス超素材の大成功閾値（GRADE_TABLEで確定済み）
-    "focus_max": 253,         # 実測: mori1さんのゲーム画面表示（消費集中力 5/253）2026-09-03
+    "focus_max": 253,         # 実測: 作者のゲーム画面表示（消費集中力 5/253）2026-09-03
     # 必殺チャージ: 公式ガイド「加えたチカラ(合計ダメージ)が大きいと直後に起きやすい」
     # 途中チャージ: 「1打ごとに判定」モデル（DQ10フロンティア 2.1後期の実測: Lv45で5506ターン中45回=0.82%/ターン、
-    #   超4連が圧倒的に出やすい=打数分の判定。mori1さん指定 2026-09-04）。1打あたり0.6%（単体0.6% / ペア1.2% / 4連2.4%）
+    #   超4連が圧倒的に出やすい=打数分の判定。作者指定 2026-09-04）。1打あたり0.6%（単体0.6% / ペア1.2% / 4連2.4%）
     #   ※旧モデル(合計ダメージ比例 hissatsu_k)は廃止
     "hissatsu_per_hit": 0.006,
     "hissatsu_focus": 0,
-    "pair_v_solo": True,   # 上下打ち/上下ねらい打ち: 縦 2 マスの窓にマスが 1 つしか無い（穴）場合もその 1 マスに打てる（レーザーエッジの A・D。mori1 2026-10-31 実機確認）。左右打ちの穴は未確認なので対象外
+    "pair_v_solo": True,   # 上下打ち/上下ねらい打ち: 縦 2 マスの窓にマスが 1 つしか無い（穴）場合もその 1 マスに打てる（レーザーエッジの A・D。作者 2026-10-31 実機確認）。左右打ちの穴は未確認なので対象外
     "modori_pick": "hi",   # 再生の対象の決め方: "hi"=範囲外で v/上限 が最大（本物の棋譜 552 件中 551 件と一致、2026-10-31）／"center"=v/中央（旧。542 件）
-    "quad_min_cells": 3,   # 2x2 の面として選べる最小のマス数（穴を含む面。グリーブは 3。4 にすると穴のある面は使わない＝旧仕様）      # 必殺（ヘパイトスの炎）押下で回復する集中。旧仕様 +30（helpfordqx blacksmith.js）は本物の棋譜で否定: GJさん 15 局（2026-10-20）、mori1さんも「必殺で回復はない」と確認
-                              #   1100℃で必殺→集中 112 のまま（+30 なし）。kifu の check（消費の連鎖）も矛盾 0。要 mori1 確認
+    "quad_min_cells": 3,   # 2x2 の面として選べる最小のマス数（穴を含む面。グリーブは 3。4 にすると穴のある面は使わない＝旧仕様）      # 必殺（ヘパイトスの炎）押下で回復する集中。旧仕様 +30（helpfordqx blacksmith.js）は本物の棋譜で否定: 配信者D 15 局（2026-10-20）、作者も「必殺で回復はない」と確認
+                              #   1100℃で必殺→集中 112 のまま（+30 なし）。kifu の check（消費の連鎖）も矛盾 0。要 作者 確認
     "open_hissatsu": 0.10,    # 光の鍛冶ハンマー特殊効果: 開幕必殺チャージ率（約10%・できのよさ依存）
     # ねらい系の倍率: 鍛冶の実測はネアンデルタール氏124打で8.5倍示唆、ひろぐ氏は7倍仮定、
-    # 裁縫は8倍説（フローライト氏は裁縫・木工中心で鍛冶固有版なし）→ 中間の8倍を採用 ⚠幅あり
-    # 2026-09-04 mori1さん指定の参考: dq10-blog.blogspot.com/2017/03/blog-post.html（防具鍛冶・光ハンマー★3）
+    # 裁縫は8倍説（配信者Gは裁縫・木工中心で鍛冶固有版なし）→ 中間の8倍を採用 ⚠幅あり
+    # 2026-09-04 作者指定の参考: dq10-blog.blogspot.com/2017/03/blog-post.html（防具鍛冶・光ハンマー★3）
     #   ねらい打ち = 道具会心率+600%（7倍: 6.2%→43.4%）/ 会心ターン = +400%（5倍: 31%）/ 両方 = 11倍（68.2%）
-    #   ※以前の8倍(50%)は高めだった（mori1さん体感）
+    #   ※以前の8倍(50%)は高めだった（作者体感）
     "aim_bonus": 6.0,         # ねらい系: 倍率に +6（→7倍）
     "event_bonus_mult": 4.0,  # 光マス/会心アップターン: 倍率に +4（→単独5倍、ねらいと併用で11倍）
-    "modori_rate": 1.0,       # 再生（旧称 戻り）: 打った後に 200℃の倍数になった時、範囲外のマスがあれば毎回起きる（GJさん棋譜 3 局で確認）
-    "modori_amount": (12, 16),  # 戻る量（GJさん配信 P9yRMJLHreA の緑の数字 12〜16）
+    "modori_rate": 1.0,       # 再生（旧称 戻り）: 打った後に 200℃の倍数になった時、範囲外のマスがあれば毎回起きる（配信者D棋譜 3 局で確認）
+    "modori_amount": (12, 16),  # 戻る量（配信者D配信 P9yRMJLHreA の緑の数字 12〜16）
     # まれに集中力回復（職人 Lv70 の特技。行動の後に集中が 10 以下だと低確率で 30 回復。画面は白く光って「+30」「なんと 集中力が 回復した！」。
-    # 2026-10-29 mori1 本人の録画 よろい上 8 局目で判明。本物の棋譜の鍛冶 160 機会中 9 回 ≈ 5.6%（⚠仮。防具 3/34・道具 6/110・武器 0/16））
+    # 2026-10-29 作者 本人の録画 よろい上 8 局目で判明。本物の棋譜の鍛冶 160 機会中 9 回 ≈ 5.6%（⚠仮。防具 3/34・道具 6/110・武器 0/16））
     "focus_recover_p": 0.058,        # 本物の棋譜 275 局: 最初の回復までの機会 155 回（手の後に集中 ≤10）のうち 9 回（2026-10-30 数え直し。⚠公式の数字なし）
     "focus_recover_below": 10,
     "focus_recover_amount": 30,
-    "focus_recover_once": True,      # 1 回の作成で回復は 1 回まで（mori1 2026-10-30。棋譜でも 2 回目の機会 5 回で回復 0）
-    "focus_recover_on_temp_move": True,  # 火力上げ・冷やし込みの後も判定する。mori1 は「起きないと思う」（未確認）だが、棋譜ではアメリー z_jfkjjVjeQ 6 局で 火力上げ（集中 9）の後に +30 が 1 例（機会 20 回中）あるので既定は判定する。False で mori1 の説どおり
-    "light_rate": 1.0,        # 光特性: 200の倍数到達時にどこかが光る確率（mori1さん確認: 100%。2026-09-04）
-    # 理想値（会心で止まる値）のばらつき。"zone"=基準値の範囲全体から一様（mori1さん 2026-10-17:
+    "focus_recover_once": True,      # 1 回の作成で回復は 1 回まで（作者 2026-10-30。棋譜でも 2 回目の機会 5 回で回復 0）
+    "focus_recover_on_temp_move": True,  # 火力上げ・冷やし込みの後も判定する。作者 は「起きないと思う」（未確認）だが、棋譜では配信者A z_jfkjjVjeQ 6 局で 火力上げ（集中 9）の後に +30 が 1 例（機会 20 回中）あるので既定は判定する。False で 作者 の説どおり
+    "light_rate": 1.0,        # 光特性: 200の倍数到達時にどこかが光る確率（作者確認: 100%。2026-09-04）
+    # 理想値（会心で止まる値）のばらつき。"zone"=基準値の範囲全体から一様（作者 2026-10-17:
     # 「どこが基準値になるかはランダム」。実配信で超あまつゆA 180-190 が下端180で会心停止）。
     # 整数 n = 中央±n（旧仕様は 2。ゆんまる動画の B=248/D=185/E=185 が中央だったことからの仮定）
     "ideal_spread": "zone",
@@ -86,7 +86,7 @@ GRADE_BY_LAYOUT = {
     "11/11/10/10": (7, 14, 25, 39),    # オノ
     "11/11/11/10": (9, 16, 29, 44),    # ムチ・フライパン
     "11/11/11/11": (10, 18, 33, 49),   # 両手剣・からだ下（4×2）
-    "11/10/10/10": (5, 13, 21, 33),    # 鎌（出典に無い。大成功 5 は mori1 の判断 2026-10-29、★2 以下は 5 マスの表からの推定 ⚠）
+    "11/10/10/10": (5, 13, 21, 33),    # 鎌（出典に無い。大成功 5 は 作者 の判断 2026-10-29、★2 以下は 5 マスの表からの推定 ⚠）
 }
 # マス数で引く代用表（上に無い形だけ）
 GRADE_TABLE = {
@@ -174,14 +174,14 @@ SKILLS = {
     "3倍打ち":       dict(mult="x3.0", cost=11, targets="cell", crit=1.0, dtemp=-50),
     "熱風おろし":     dict(mult="x2.5", cost=6,  targets="cell", crit=1.0, dtemp=-150),
     "上下打ち":      dict(mult="x1.2", cost=8,  targets="pair_v", crit=1.0, dtemp=-50),
-    "左右打ち":      dict(mult="x1.2", cost=8,  targets="pair_lr", crit=1.0, dtemp=-50),  # 消費8はmori1さん確認済み(2026-09-06)
+    "左右打ち":      dict(mult="x1.2", cost=8,  targets="pair_lr", crit=1.0, dtemp=-50),  # 消費8は作者確認済み(2026-09-06)
     "ななめ打ち":     dict(mult="x1.2", cost=7,  targets="pair_diag", crit=1.0, dtemp=-50),
     "4連打ち":       dict(mult="x1.2", cost=12, targets="quad", crit=1.0, dtemp=-50),
     "超4連打ち":      dict(mult="x2.0", cost=18, targets="quad", crit=1.0, dtemp=-50),
     "ねらい打ち":     dict(mult="x1.0", cost=16, targets="cell", crit=7.0, dtemp=-50),
-    "弱ねらい打ち":   dict(mult="x0.5", cost=20, targets="cell", crit=7.0, dtemp=-50),  # 消費20はmori1さん確認済み(2026-09-06)
+    "弱ねらい打ち":   dict(mult="x0.5", cost=20, targets="cell", crit=7.0, dtemp=-50),  # 消費20は作者確認済み(2026-09-06)
     "上下ねらい打ち": dict(mult="x1.2", cost=25, targets="pair_v", crit=7.0, dtemp=-50),
-    "みだれ打ち":     dict(mult="x0.8", cost=7,  targets="rand4", crit=1.0, dtemp=-50),  # ランダムに4回（同じマスに重なることもある＝mori1さん確認）。消費7・0.8倍は GJさんの棋譜で確認（2026-10-20）
+    "みだれ打ち":     dict(mult="x0.8", cost=7,  targets="rand4", crit=1.0, dtemp=-50),  # ランダムに4回（同じマスに重なることもある＝作者確認）。消費7・0.8倍は 配信者Dの棋譜で確認（2026-10-20）
     "火力上げ":      dict(mult=None,   cost=10, targets="none", crit=0.0, dtemp=+300),
     "冷やし込み":     dict(mult=None,   cost=12, targets="none", crit=0.0, dtemp=-300),
     "必殺":          dict(mult=None,   cost=0,  targets="none", crit=0.0, dtemp=-50)  # ヘパイトス使用ターンは温度-50（DQ10フロンティア記事）,
@@ -222,7 +222,7 @@ def cost_of(skill: str, trait: str, temp: int, first: bool = False) -> int:
 
 def _cost_of(skill: str, trait: str, temp: int) -> int:
     """特技の消費集中力（集中力変化: 400の倍数で半減、400n+200 の会心率アップのターンは 1.5 倍・切り上げ）。
-    1.5 倍は大会配信で実測（熱風 6→9 / ねらい打ち 16→24 / 上下ねらい打ち 25→38 / 超4連 18→27 / たたく 5→8、mori1さん確認 2026-10-18）"""
+    1.5 倍は大会配信で実測（熱風 6→9 / ねらい打ち 16→24 / 上下ねらい打ち 25→38 / 超4連 18→27 / たたく 5→8、作者確認 2026-10-18）"""
     cost = SKILLS[skill]["cost"]
     if trait == "集中力変化" and cost > 0:
         if temp % 400 == 0:
@@ -252,7 +252,7 @@ def turn_multiplier(trait: str, temp: int) -> float:
 def _turn_multiplier(trait: str, temp: int) -> float:
     """素材特性による威力倍率（倍半のみ実装。他特性はv2で）。
 
-    倍半のスケジュールは全アイテム固定（mori1さん確認済み）:
+    倍半のスケジュールは全アイテム固定（作者確認済み）:
     200=半減, 400=倍, 600=半減, 800=倍, 1000=半減, 1200=倍,
     1400=半減, 1600=倍, 1800=半減, 2000=倍
     """
@@ -353,7 +353,7 @@ class Sim:
     # 6マス A,B/C,D/E,F 配置のデフォルト（後方互換）
     PAIRS_V = [("A", "C"), ("C", "E"), ("B", "D"), ("D", "F")]
     PAIRS_LR = [("A", "B"), ("C", "D"), ("E", "F")]
-    PAIRS_DIAG = [("B", "C"), ("D", "E")]  # ななめ打ちは左下→右上の方向のみ（mori1確認 2026-09-05）。A-D/C-Fは不可
+    PAIRS_DIAG = [("B", "C"), ("D", "E")]  # ななめ打ちは左下→右上の方向のみ（作者確認 2026-09-05）。A-D/C-Fは不可
     QUADS = [("A", "B", "C", "D"), ("C", "D", "E", "F")]
 
     def __post_init__(self):
@@ -369,7 +369,7 @@ class Sim:
             self.quads = list(self.QUADS)
 
     def can_use(self, skill: str) -> bool:
-        if self.temp <= 0:          # 温度が 0 ℃になると作成はそこで終了（mori1 2026-10-31。300 ℃での冷やし込み・50 ℃での打撃は最後の行動になる）
+        if self.temp <= 0:          # 温度が 0 ℃になると作成はそこで終了（作者 2026-10-31。300 ℃での冷やし込み・50 ℃での打撃は最後の行動になる）
             return False
         return self.focus >= cost_of(skill, self.trait, self.temp, first=not self.started)
 
@@ -394,7 +394,7 @@ class Sim:
             r_true = c.ideal_true - c.v
             if r_true <= 0:
                 # 理想値に到達済み/通り過ぎたマスへの会心は Miss（0）。必殺は DQ10フロンティア記事、
-                # 通常の会心も同じ前提にする（mori1さん 2026-10-18）
+                # 通常の会心も同じ前提にする（作者 2026-10-18）
                 return ("miss", 0)
             if 0 < r_true <= reach:
                 c.v = c.ideal_true  # 本会心（隠し理想値で停止）
@@ -425,14 +425,14 @@ class Sim:
         if s["targets"] != "none":
             forced = self.hissatsu_armed
             self.hissatsu_armed = False
-            if s["targets"] == "rand4":     # みだれ打ち: 対象は選ばず、全マスから 4 回ランダム（必殺の後は 4 打とも会心＝mori1さん確認 2026-10-20）
+            if s["targets"] == "rand4":     # みだれ打ち: 対象は選ばず、全マスから 4 回ランダム（必殺の後は 4 打とも会心＝作者確認 2026-10-20）
                 names = list(self.cells)
                 targets = tuple(self.rng.choice(names) for _ in range(4))
             for i, name in enumerate(targets):
                 results.append((name, *self.hit_one(name, s["mult"], s["crit"], forced)))
         self.focus -= cost
         # まれに集中力回復（Lv70 特技）: 行動の後に集中が focus_recover_below 以下なら低確率で +30（2026-10-29、本物の棋譜 9/155）。
-        # 1 回の作成で 1 回まで（focus_recover_once）。温度だけの手（火力上げ・冷やし込み）の後に判定するかは focus_recover_on_temp_move（2026-10-30 mori1・kaji-kaisetsu）
+        # 1 回の作成で 1 回まで（focus_recover_once）。温度だけの手（火力上げ・冷やし込み）の後に判定するかは focus_recover_on_temp_move（2026-10-30 作者・kaji-kaisetsu）
         if (self.focus <= ASSUMPTIONS["focus_recover_below"] and not self.deterministic
                 and not (ASSUMPTIONS["focus_recover_once"] and getattr(self, "focus_recovered", 0) >= 1)
                 and (ASSUMPTIONS["focus_recover_on_temp_move"] or results)
@@ -441,10 +441,10 @@ class Sim:
             self.focus_recovered = getattr(self, "focus_recovered", 0) + 1
         hit_temp = self.temp
         self.temp = max(0, self.temp + s["dtemp"])
-        # 再生（戻り）: 行動の後の温度が 200℃の倍数になると、範囲外でいちばん割合が進んだマスが 12〜16 戻る（mori1さん 2026-10-19、GJさん棋譜 8・10・13局で確認）。
-        # 冷やし込み・火力上げ（マスに当たらない行動）でも起きる（2026-10-29 mori1 指摘。本物の棋譜 7 例中 7 例＝アメリー 6・クマタロー 1 で再生あり。以前は「打撃の後だけ」としていた＝誤り）
+        # 再生（戻り）: 行動の後の温度が 200℃の倍数になると、範囲外でいちばん割合が進んだマスが 12〜16 戻る（作者 2026-10-19、配信者D棋譜 8・10・13局で確認）。
+        # 冷やし込み・火力上げ（マスに当たらない行動）でも起きる（2026-10-29 作者 指摘。本物の棋譜 7 例中 7 例＝配信者A 6・クマタロー 1 で再生あり。以前は「打撃の後だけ」としていた＝誤り）
         if self.trait in MODORI_TRAITS and self.temp % 200 == 0 and self.temp > 0 and not self.deterministic                 and self.rng.random() < ASSUMPTIONS["modori_rate"]:
-            # 範囲に入っていないマスのうち、割合がいちばん進んだマス（範囲内のマスは戻らない。GJさん 8局目で全マス範囲内の 800℃は戻りなし）
+            # 範囲に入っていないマスのうち、割合がいちばん進んだマス（範囲内のマスは戻らない。配信者D 8局目で全マス範囲内の 800℃は戻りなし）
             cand = [n for n in self.cells if not (self.cells[n].lo <= self.cells[n].v <= self.cells[n].hi)]
             name = max(cand, key=lambda n: modori_key(self.cells[n])) if cand else None
         else:
@@ -493,7 +493,7 @@ class Sim:
         c.hissatsu_armed = self.hissatsu_armed
         c.hissatsu_used = self.hissatsu_used
         # no_hissatsu は実盤面（練習モード）だけに効かせ、先読み用クローンには引き継がない
-        # （mori1: 先読みは「必殺が来るかも」の通常前提で計算する）
+        # （作者: 先読みは「必殺が来るかも」の通常前提で計算する）
         c.lit_cell = self.lit_cell
         c.started = self.started
         c.grade_table = self.grade_table
@@ -559,7 +559,7 @@ def make_item(item_name: str, rng: random.Random | None = None) -> Sim:
         for c in range(cols_n - 1):
             q = [(r, c), (r, c + 1), (r + 1, c), (r + 1, c + 1)]
             have = [at[x] for x in q if x in at]
-            # 盤面の穴を含む 2x2 も選べる（機甲兵のグリーブ [[-,A],[-,B],[C,D]] の超4連は B・C・D の 3 マスに当たる。mori1 本人の棋譜 2026-10-25）
+            # 盤面の穴を含む 2x2 も選べる（機甲兵のグリーブ [[-,A],[-,B],[C,D]] の超4連は B・C・D の 3 マスに当たる。作者 本人の棋譜 2026-10-25）
             if len(have) >= max(2, qmin) and len(have) == len(set(have)):
                 quads.append(tuple(have))
     trait = it.get("trait", "")
@@ -574,7 +574,7 @@ def make_item(item_name: str, rng: random.Random | None = None) -> Sim:
 
 def cell_names_for(occupied):
     """マスのある (行, 列) の一覧 → {(行, 列): 記号}。左上から行の順に、欠けたマスも数えて記号を割り振る（レーザーエッジ A B/(C) D/E F）が、
-    マスが 1 つも無い列は数えない（1 列の商材は A,B,C。mori1 2026-11-03）。"""
+    マスが 1 つも無い列は数えない（1 列の商材は A,B,C。作者 2026-11-03）。"""
     cols = sorted({c for _, c in occupied})
     ci = {c: i for i, c in enumerate(cols)}
     width = len(cols)
@@ -622,8 +622,8 @@ def make_amatsuyu(rng: random.Random | None = None) -> Sim:
 
 
 def make_kikouhei_ue(rng: random.Random | None = None) -> Sim:
-    """機甲兵のよろい上（VER8.1 新防具、防具鍛冶・再生・6マス）。基準値は mori1さん提供の表（2026-10-18）。
-    幅が 10 と超素材より広い。GJ channel 配信（P9yRMJLHreA）で 2 回打って どちらも大成功 5 割"""
+    """機甲兵のよろい上（VER8.1 新防具、防具鍛冶・再生・6マス）。基準値は 作者提供の表（2026-10-18）。
+    幅が 10 と超素材より広い。配信者D 配信（P9yRMJLHreA）で 2 回打って どちらも大成功 5 割"""
     rng = rng or random.Random()
     zones = {"A": (235, 244), "B": (105, 113), "C": (125, 133),
              "D": (150, 159), "E": (170, 179), "F": (220, 229)}
@@ -661,7 +661,7 @@ def aim_window(sim: Sim, mult_key: str, temp: int | None = None) -> tuple[int, i
 
 def aim_window_cell(sim: Sim, name: str, mult_key: str,
                     temp: int | None = None) -> tuple[int, int]:
-    """マス個別の理想釣りレンジ（mori1さん定石）。
+    """マス個別の理想釣りレンジ（作者定石）。
 
     下限 = z*dmax + (理想値-ゾーン下限): 非会心でもゾーンに入らず「再挑戦可能」なまま
     上限 = 2*z*dmin: 会心なら本会心確定

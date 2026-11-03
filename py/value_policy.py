@@ -555,8 +555,8 @@ def value_depth2(sim: Sim, net, moves, samples: int):
     return value_deep(sim, net, moves, samples, 2)
 
 
-SCRIPT_EXT = False         # あまつゆの台本を 8〜11 手目まで伸ばす（ソルティーさんの型: 1950 熱風 F → 1800 たたく → 1750 熱風 → 1600 熱風 B）。1000 局で決める（2026-11-03）
-OPENING_SCRIPT = True      # 倍半の商材は学習型の前に手書きの開幕台本（kaji_generic.baihan_opening＝GJ さん・mori1 の型: 火力上げ×2 → 1600 熱風 → 火力上げ×2 → 2050 → 2000 超4連）を使う（2026-11-03）
+SCRIPT_EXT = False         # あまつゆの台本を 8〜11 手目まで伸ばす（配信者Bの型: 1950 熱風 F → 1800 たたく → 1750 熱風 → 1600 熱風 B）。1000 局で決める（2026-11-03）
+OPENING_SCRIPT = True      # 倍半の商材は学習型の前に手書きの開幕台本（kaji_generic.baihan_opening＝配信者D・作者 の型: 火力上げ×2 → 1600 熱風 → 火力上げ×2 → 2050 → 2000 超4連）を使う（2026-11-03）
 
 
 HIDANE_SCRIPT_MIN_TEMP = 1600   # ひだね（光・6 マス・必要量 ≥1200）: この温度以上は手書き hidane の手（火力上げ×4 → 2200 → 光ったマスへの応答）。None で使わない
@@ -639,7 +639,7 @@ def jueki_script_move(sim: Sim):
     return (sk, _canon_targets(sim, sk, tg))
 
 
-ORB_SCRIPT_MIN_TEMP = 1500      # 虹色のオーブ: この温度以上は手書き orb_policy（アメリーさん型）の手。None で使わない
+ORB_SCRIPT_MIN_TEMP = 1500      # 虹色のオーブ: この温度以上は手書き orb_policy（定石）の手。None で使わない
 
 
 def orb_script_move(sim: Sim):
@@ -666,7 +666,7 @@ def orb_script_move(sim: Sim):
 
 
 def opening_script_move(sim: Sim):
-    """開幕台本の手（該当しなければ None）。倍半だけ。mori1 の型（2026-11-03 の 3 局）:
+    """開幕台本の手（該当しなければ None）。倍半だけ。作者 の型（2026-11-03 の 3 局）:
     火力上げ×2 → 1600（倍ターン）は「2 倍の熱風が範囲に入るマス」があればそこへ熱風（あまつゆ A: 180〜190 に +183〜187）、無ければ必要量最大のマス →
     火力上げ×2 → 2050 は ななめ打ち（−50 で 2000 に乗せる。超4連を打つ面の中の、残りが大きい 2 マス）→ 2000（倍ターン）超4連。以後は学習型"""
     if sim.trait != "倍半" or not sim.quads:
@@ -731,7 +731,7 @@ def opening_script_move(sim: Sim):
         except Exception:
             pass
     if SCRIPT_EXT and len(touched) >= 4 and 1600 <= temp <= 1950:
-        # ソルティーさんの 8〜11 手目（21 局）: 1950 熱風 F → 1800 たたく → 1750 熱風 → 1600（倍）熱風 B（触っていない大マスを倍ターンまで温存）
+        # 配信者Bの 8〜11 手目（21 局）: 1950 熱風 F → 1800 たたく → 1750 熱風 → 1600（倍）熱風 B（触っていない大マスを倍ターンまで温存）
         untouched = [n for n, c in cells.items() if c.v == 0]
         z = KS.turn_multiplier(sim.trait, temp)
 

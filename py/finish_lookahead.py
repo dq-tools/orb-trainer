@@ -32,12 +32,12 @@ PHASE_MIN_TEMP = 800  # この温度以上はphase式、未満は先読み（実
 REGEN_CAND = [0]
 REGEN_OVERSHOOT = False  # 再生の地金で「はみ出して戻す」を候補に入れる（2026-10-20 実験）
 AIM_MAX_TEMP = None      # ねらい系を使う温度の上限（None=制限なし）
-AIM_WIDE_BONUS = 0.0     # 先読みの評価に、ねらい系の対象マスの「幅の広さ」(幅−平均幅)/平均幅 × この値を足す（広いマスの本会心は残りの誤差を減らす。mori1 2026-10-28「狙う場所で差がある」）
-LOWTEMP_AIM_ONLY = None  # 温度がこの値以下の時、ねらい打ちが候補にあるマスへの たたく/てかげん/2倍 を候補から外す（低温の寄せは小さい出目のねらいで＝ソルティーさんの型。2026-10-28 実験、None=無効）
+AIM_WIDE_BONUS = 0.0     # 先読みの評価に、ねらい系の対象マスの「幅の広さ」(幅−平均幅)/平均幅 × この値を足す（広いマスの本会心は残りの誤差を減らす。作者 2026-10-28「狙う場所で差がある」）
+LOWTEMP_AIM_ONLY = None  # 温度がこの値以下の時、ねらい打ちが候補にあるマスへの たたく/てかげん/2倍 を候補から外す（低温の寄せは小さい出目のねらいで＝配信者Bの型。2026-10-28 実験、None=無効）
 AIM_WIDE_ONLY = False    # 広い（平均幅より広い）未確定マスに単体のねらいが打てる時は、狭いマスへの単体ねらいを候補から外す
 AIM_NEEDS_REACH = True  # ねらい系は会心で理想に届く時だけ候補にする（2026-10-12）
-AIM_RESET = False        # 再生の地金: 範囲内（下限 −4 まで）のマスへ、打った後に 200℃ の倍数になる時のねらい（全部の目がはみ出し ≤11、再生で戻る）を候補に（アメリーさん型、2026-10-26）
-AIM_RESCUE = False       # 再生の地金: 非会心の大きい目が上限を 1〜AIM_RESCUE_MAX_OVER 超えるねらい系も候補に入れる（はみ出しは次の 200℃ の倍数の再生 −12〜16 で救える。アメリーさん 50 局で再生 159 回のうち 63 回がはみ出し中のマスに来て 27 回が範囲内へ。2026-10-26）
+AIM_RESET = False        # 再生の地金: 範囲内（下限 −4 まで）のマスへ、打った後に 200℃ の倍数になる時のねらい（全部の目がはみ出し ≤11、再生で戻る）を候補に（定石、2026-10-26）
+AIM_RESCUE = False       # 再生の地金: 非会心の大きい目が上限を 1〜AIM_RESCUE_MAX_OVER 超えるねらい系も候補に入れる（はみ出しは次の 200℃ の倍数の再生 −12〜16 で救える。配信者A 50 局で再生 159 回のうち 63 回がはみ出し中のマスに来て 27 回が範囲内へ。2026-10-26）
 AIM_RESCUE_MAX_OVER = 8  # 許すはみ出しの最大（再生の最小 12 で上限以下に戻る量）
 AIM_RESCUE_MIN_TEMP = 250  # これより低い温度では次の 200℃ の倍数が来ないので許さない
 SINGLE = ["たたく", "てかげん打ち", "2倍打ち", "3倍打ち", "熱風おろし", "ねらい打ち", "弱ねらい打ち"]
@@ -57,7 +57,7 @@ def candidates(sim: Sim):
     def zc(n):  # 光ったマスはダメージ2倍（hit_one と同じ）
         return z * (2.0 if n == sim.lit_cell else 1.0)
 
-    reserved = R.hissatsu_reserved(sim)   # 必殺の面で確定するマスにはねらい系を使わない（mori1 2026-09-06）
+    reserved = R.hissatsu_reserved(sim)   # 必殺の面で確定するマスにはねらい系を使わない（作者 2026-09-06）
     for skill in SINGLE:
         if not sim.can_use(skill):
             continue
@@ -70,7 +70,7 @@ def candidates(sim: Sim):
             if aim and AIM_NEEDS_REACH and 2 * math.ceil(cand[-1] * zc(n)) < c.r:
                 continue  # 会心しても理想に届かないねらいは候補にしない
             if aim and AIM_MAX_TEMP is not None and sim.temp > AIM_MAX_TEMP:
-                continue  # 高温ではねらわない（ソルティーさんの樹液: ねらい系は 650℃以下。2026-10-20 実験）（mori1 2026-10-12: 届かないAへの弱ねらい推奨の指摘）
+                continue  # 高温ではねらわない（配信者Bの樹液: ねらい系は 650℃以下。2026-10-20 実験）（作者 2026-10-12: 届かないAへの弱ねらい推奨の指摘）
             if math.ceil(cand[-1] * zc(n)) <= c.hi - c.v:
                 out.append((skill, (n,)))
             elif aim and AIM_RESCUE and sim.trait in KS.MODORI_TRAITS and sim.temp >= AIM_RESCUE_MIN_TEMP                     and 1 <= math.ceil(cand[-1] * zc(n)) - (c.hi - c.v) <= AIM_RESCUE_MAX_OVER:
@@ -78,8 +78,8 @@ def candidates(sim: Sim):
             elif n == sim.lit_cell and SKILLS[skill]["crit"] > 1 and c.r >= 4:
                 import policy_hidane as _PH
                 if _PH.light_aim_ok(sim, c, SKILLS[skill]["mult"]):
-                    out.append((skill, (n,)))  # 光ったマスへのねらい: はみ出す目 2/7 まで許容（mori1）
-    # 再生（戻り）の地金: わざと範囲を 7〜12 だけ超えて、次の 200℃ の倍数で 12〜16 戻るのを受ける（GJさん 14局 1100℃ F 211→235→1000℃で 220）。
+                    out.append((skill, (n,)))  # 光ったマスへのねらい: はみ出す目 2/7 まで許容（作者）
+    # 再生（戻り）の地金: わざと範囲を 7〜12 だけ超えて、次の 200℃ の倍数で 12〜16 戻るのを受ける（配信者D 14局 1100℃ F 211→235→1000℃で 220）。
     # 戻るのは「範囲外で割合がいちばん進んだマス」なので、超えたマスが必ず戻る。戻りが 1〜2 手以内に来る温度（200n+50/100）の時だけ候補に入れる
     if REGEN_OVERSHOOT and sim.trait in KS.MODORI_TRAITS and sim.temp % 200 in (50, 100):
         lo_k, hi_k = ASSUMPTIONS["modori_amount"]
@@ -140,7 +140,7 @@ def candidates(sim: Sim):
     if sim.temp <= 400 and sim.can_use("火力上げ") and any(not c.in_zone for c in sim.cells.values()):
         out.append(("火力上げ", ()))
     elif sim.trait == "光" and sim.temp <= 1700 and (sim.temp + 300) % 200 == 0             and sim.can_use("火力上げ") and any(not c.in_zone for c in sim.cells.values()):
-        out.append(("火力上げ", ()))  # 光: 200の倍数に乗せて発光を誘う（mori1「集中に余裕があれば火力上げ/下げで光らせて狙う」）
+        out.append(("火力上げ", ()))  # 光: 200の倍数に乗せて発光を誘う（作者「集中に余裕があれば火力上げ/下げで光らせて狙う」）
     if sim.hissatsu_charged and R.hissatsu_target(sim) is not None:
         out.append(("必殺", ()))  # 4マス本会心ルールを満たす時のみ
     return out

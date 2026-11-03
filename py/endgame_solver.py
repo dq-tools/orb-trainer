@@ -26,7 +26,7 @@ MAX_NODES = 60000       # 状態数の上限（超えたら先読みにフォー
 class TooBig(Exception):
     pass
 REGEN = True            # 再生の地金: 行動後の温度が 200℃ の倍数なら「範囲外で割合が最大のマスが 12〜16 戻る」を分岐に入れ、
-                        # 戻せる見込みのある「はみ出す手」も候補にする（mori1 2026-10-29「厳密解を頑張りましょう」。
+                        # 戻せる見込みのある「はみ出す手」も候補にする（作者 2026-10-29「厳密解を頑張りましょう」。
                         # きっかけ: 950℃・集中 38 で B 142/140-148 にねらい→冷やし込み→600℃ の再生で 44%→54% の局面を見落としていた）
 REGEN_OVER_MAX = 16     # はみ出す手を候補にする上限（非会心の最大の目で上限をこれ以上超える手は入れない。戻りの最大 16 で範囲に戻れる分だけ）
 K_OFFSETS = (-2, -1, 0, 1, 2)
@@ -192,7 +192,7 @@ class Solver:
             dmax = math.ceil(dmg_candidates(temp, mk)[-1] * z * (2.0 if i == lit else 1.0))
             if regen_ok and v <= self.hi[i]:
                 # 再生で戻せる見込みのある手: 非会心の最大の目で上限を REGEN_OVER_MAX まで超えてよい（範囲内のマスでも可。
-                # 会心なら理想値で止まり、外れて飛び出しても 200 の倍数の再生で戻る＝アメリーさんの「再生の直前のねらい」）
+                # 会心なら理想値で止まり、外れて飛び出しても 200 の倍数の再生で戻る＝配信者Aの「再生の直前のねらい」）
                 return v + dmax <= self.hi[i] + REGEN_OVER_MAX
             return v + dmax <= self.hi[i] and v < self.center[i] + 2
 
@@ -235,7 +235,7 @@ class Solver:
             raise TooBig()
         best_v = self.terminal(cells)
         best_a = None
-        if temp <= 0:                       # 0 ℃で作成は終了（mori1 2026-10-31）。これ以上の行動は無い
+        if temp <= 0:                       # 0 ℃で作成は終了（作者 2026-10-31）。これ以上の行動は無い
             self.memo[key] = (best_v, None)
             return best_v
         for a in self.actions(temp, focus, cells, charged, armed, lit):

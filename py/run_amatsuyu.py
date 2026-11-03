@@ -60,7 +60,7 @@ def opening_step(sim: Sim):
     return None
 
 
-PHASE_TURNS = (1200, 800)   # 上下ねらいを撃つ倍ターン。(1600, 1200, 800) で ひつひつ羊式（1600で左ペア）を試せる
+PHASE_TURNS = (1200, 800)   # 上下ねらいを撃つ倍ターン。(1600, 1200, 800) で 配信者I式（1600で左ペア）を試せる
 
 
 def phase_step(sim: Sim) -> bool:
@@ -105,7 +105,7 @@ def haul_into(sim: Sim, name: str, floor: int, slots_left: int = 99, allow_tekag
     z = turn_multiplier(sim.trait, sim.temp)
     order = []
     if z <= 0.5:
-        # 半減ターン（威力半分）: 高い技を使っても半分しか進まない → 安い技で刻む（mori1 2026-09-06「半減なのに2倍打ちは無駄」）。
+        # 半減ターン（威力半分）: 高い技を使っても半分しか進まない → 安い技で刻む（作者 2026-09-06「半減なのに2倍打ちは無駄」）。
         # 大きく運ぶ必要がある時（残りが大きい）だけ熱風/3倍を後ろに残す
         order = ["たたく"] + (["てかげん打ち"] if allow_tekagen else []) + (["熱風おろし"] if slots_left >= 3 else []) + ["3倍打ち", "2倍打ち"]
     else:
@@ -143,12 +143,12 @@ def can_afford_luxury(sim: Sim, cost: int, exclude: tuple[str, ...] = ()) -> boo
     return sim.focus - cost >= zone_deficit_cost(sim, exclude)
 
 
-WINDOW_MODE = "sim"   # "sim"=会心確定域そのまま(理想=中央±2前提) / "wero"=ウェロア表の窓（2026-09-06 比較用）
+WINDOW_MODE = "sim"   # "sim"=会心確定域そのまま(理想=中央±2前提) / "wero"=配信者F表の窓（2026-09-06 比較用）
 
 
 def cell_win(sim: Sim, name: str, win: tuple[int, int]) -> tuple[int, int]:
     """マスごとの上下ねらい窓（残り r の範囲）。
-    "wero": ウェロア氏の準備数値表（動画 Xor_WC_ZQKs）を r に直したもの。
+    "wero": 配信者F氏の準備数値表（動画 Xor_WC_ZQKs）を r に直したもの。
       下限 = 非会心最大 + (11幅ゾーンなら 理想-下限: 非会心でゾーンに入らずもう一度狙える) / 7幅は真ん中まで許容
       上限 = 会心最低値 - (上端-理想): 理想がゾーン上端にあっても会心が届く（理想位置に頼らない）"""
     if WINDOW_MODE != "wero":
@@ -218,11 +218,11 @@ def hissatsu_target(sim: Sim, focus_bonus: int | None = None):
     z = turn_multiplier(sim.trait, t_hit)
     reach12 = 2 * _m.ceil(dmg_candidates(t_hit, "x1.2")[0] * z)
     # 対象条件: 理想値より確実に手前(ブレ±2込み)。会心は届けば理想値で停止・
-    # 届かなくても手前に落ちるだけなので上限は不要（mori1さん検証）
+    # 届かなくても手前に落ちるだけなので上限は不要（作者検証）
     def ok(c, reach):
         # 理想の手前(ブレ±2込みで r>=4)なら対象。ゾーン内でも可（必殺は会心確定なので偽会心の心配なし）
         return (not c.pinned) and c.v <= c.hi and c.r >= 4
-    # 定石: 超4連で4マス同時に本会心（mori1: 必ず4か所が本会心になるタイミングで使う。2026-09-04）
+    # 定石: 超4連で4マス同時に本会心（作者: 必ず4か所が本会心になるタイミングで使う。2026-09-04）
     reach20 = 2 * _m.ceil(dmg_candidates(t_hit, "x2.0")[0] * z)
     quad_possible = False  # いずれかの面がまだ4マス本会心を狙える（全マス未完成）か
     fb = focus + focus_bonus   # 押下後に使える集中（回復は ASSUMPTIONS hissatsu_focus。集中力変化の会心ターンは消費 1.5 倍なので cost_of で見る）
@@ -264,7 +264,7 @@ def hissatsu_target(sim: Sim, focus_bonus: int | None = None):
 
 def hissatsu_quad_plan(sim: Sim):
     """必殺チャージ中に「4マス本会心」を狙える面（超4連の対象）を返す。None=面は作れない。
-    mori1（2026-09-06）: 面のマスは必殺で確定するので集中を使わない。射程に足りないマスだけ軽く運び、
+    作者（2026-09-06）: 面のマスは必殺で確定するので集中を使わない。射程に足りないマスだけ軽く運び、
     残りの集中は面の外のペアに使う。戻り値: (面のタプル, 射程に足りないマス名のリスト, reach20)"""
     import math as _m
     if not sim.hissatsu_charged or sim.hissatsu_armed:
@@ -375,7 +375,7 @@ def phase_iter(sim: Sim, turn_temp: int) -> bool:
 
         slots = (sim.temp - turn_temp) // 50
         # 1) ペアのマスを win へ運ぶ（半減ターンは微調整に最適）
-        # 倍ターン（威力2倍）はてかげんの微調整に使わず、遠いマスへの大きい一撃に回す（mori1 2026-09-06:
+        # 倍ターン（威力2倍）はてかげんの微調整に使わず、遠いマスへの大きい一撃に回す（作者 2026-09-06:
         # 「倍ターンにCへてかげんは効率が悪い。Fを伸ばすべき」）。調整は残りの通常/半減ターンで行う
         doubled = turn_multiplier(sim.trait, sim.temp) >= 2.0 and slots >= 2
         if QUAD_HAUL and not halved and slots >= 2:
@@ -444,7 +444,7 @@ def phase_iter(sim: Sim, turn_temp: int) -> bool:
         return acted
 
 
-AIM_TURNS = (1200, 800)   # 倍ターンでねらい系を使う温度。(800,) にすると 1200 は削るだけ（mori1案 2026-09-06 の比較用）
+AIM_TURNS = (1200, 800)   # 倍ターンでねらい系を使う温度。(800,) にすると 1200 は削るだけ（作者案 2026-09-06 の比較用）
 
 
 def fire_turn(sim: Sim):
@@ -482,7 +482,7 @@ def fire_turn(sim: Sim):
         for n in sorted(sim.cells, key=lambda n: -sim.cells[n].r):
             c = sim.cells[n]
             if n in reserved:
-                continue  # 必殺の面で確定するマスには集中を使わない（mori1）
+                continue  # 必殺の面で確定するマスには集中を使わない（作者）
             if not c.in_zone and lo10 <= c.r <= hi10                     and can_afford_luxury(sim, 16 + 6, (n,)):
                 sim.act("ねらい打ち", (n,))
                 return
@@ -563,7 +563,7 @@ def _pin_fish_skill(sim: Sim, c) -> str | None:
         cand = dmg_candidates(sim.temp, SKILLS[skill]["mult"])
         dmin, dmax = _m.ceil(cand[0] * z), _m.ceil(cand[-1] * z)
         # 会心なら本会心(誤差0)、非会心でも理想超過が現誤差を超えない(dmax<=2r)＝
-        #   外しても悪化しない。hi-vだけだと非会心で理想を大きく踏み越え固着する(mori1)
+        #   外しても悪化しない。hi-vだけだと非会心で理想を大きく踏み越え固着する(作者)
         if dmax <= c.hi - c.v and dmax <= 2 * c.r and c.r <= 2 * dmin:
             return skill
     return None
