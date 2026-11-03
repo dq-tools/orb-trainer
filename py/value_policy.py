@@ -562,6 +562,18 @@ OPENING_SCRIPT = True      # 倍半の商材は学習型の前に手書きの開
 HIDANE_SCRIPT_MIN_TEMP = 1600   # ひだね（光・6 マス・必要量 ≥1200）: この温度以上は手書き hidane の手（火力上げ×4 → 2200 → 光ったマスへの応答）。None で使わない
 
 
+def _canon_targets(sim: Sim, skill: str, tg):
+    """対象の組を Sim が持つ並び（pairs_v / pairs_lr / pairs_diag / quads の要素）に揃える。並びが違うと公開版の検証で弾かれる（2026-11-03）"""
+    tg = tuple(tg) if tg else ()
+    kind = KS.SKILLS.get(skill, {}).get("targets")
+    pools = {"pair_v": list(sim.pairs_v or []) + list(getattr(sim, "pairs_v_solo", None) or []), "pair_lr": sim.pairs_lr, "pair_diag": sim.pairs_diag, "quad": sim.quads}
+    if kind in pools:
+        for g in (pools[kind] or []):
+            if set(g) == set(tg):
+                return tuple(g)
+    return tg
+
+
 _ZONE_SIG = {}
 
 
@@ -597,7 +609,7 @@ def hidane_script_move(sim: Sim):
         return ("必殺", ()) if (sim.hissatsu_charged and not sim.hissatsu_used) else None
     if not sim.can_use(sk):
         return None
-    return (sk, tg)
+    return (sk, _canon_targets(sim, sk, tg))
 
 
 JUEKI_SCRIPT_MIN_TEMP = 2000    # 樹液（集中力変化・6 マス・必要量 ≥1200）: この温度以上は手書き jueki の手（開幕 A ＋ 会心ターンの面作り）。None で使わない
@@ -624,7 +636,7 @@ def jueki_script_move(sim: Sim):
         return ("必殺", ()) if (sim.hissatsu_charged and not sim.hissatsu_used) else None
     if not sim.can_use(sk):
         return None
-    return (sk, tg)
+    return (sk, _canon_targets(sim, sk, tg))
 
 
 ORB_SCRIPT_MIN_TEMP = 1500      # 虹色のオーブ: この温度以上は手書き orb_policy（アメリーさん型）の手。None で使わない
@@ -650,7 +662,7 @@ def orb_script_move(sim: Sim):
         return ("必殺", ()) if (sim.hissatsu_charged and not sim.hissatsu_used) else None
     if not sim.can_use(sk):
         return None
-    return (sk, tg)
+    return (sk, _canon_targets(sim, sk, tg))
 
 
 def opening_script_move(sim: Sim):
@@ -744,7 +756,7 @@ def next_move(sim: Sim, net=None, samples: int | None = None):
     if OPENING_SCRIPT:
         mv = opening_script_move(sim)
         if mv is not None:
-            return mv
+            return (mv[0], _canon_targets(sim, mv[0], mv[1]))
     mv = hidane_script_move(sim) or jueki_script_move(sim) or orb_script_move(sim)
     if mv is not None:
         return mv

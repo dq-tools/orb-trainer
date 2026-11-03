@@ -256,8 +256,11 @@ def move(skill, targets="", by_ai=False):
     pools = {"pair_v": s.pairs_v, "pair_lr": s.pairs_lr, "pair_diag": s.pairs_diag, "quad": s.quads}
     if tgt == "cell" and (len(tg) != 1 or tg[0] not in s.cells):
         return _j({"error": "マスを選んでください"})
-    if tgt in pools and tuple(tg) not in [tuple(x) for x in pools[tgt]]:
-        return _j({"error": "対象の組が不正です"})
+    if tgt in pools:
+        match = [tuple(x) for x in pools[tgt] if set(x) == set(tg)]      # 並びは問わない（台本は D,E・Sim は E,D のことがある。2026-11-03）
+        if not match:
+            return _j({"error": "対象の組が不正です"})
+        tg = list(match[0])
     if tgt in ("none", "rand4"):
         tg = ()
     G["history"].append(_snapshot(s))
