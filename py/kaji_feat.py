@@ -213,9 +213,30 @@ def pad(X: np.ndarray):
     return out, m
 
 
-def legal_moves(sim: Sim):
+NO_TEMP_REVERSAL = True   # 直前の温度だけの手を打ち消す手（冷やし込み→火力上げ、火力上げ→冷やし込み）は候補にしない（集中を捨てる往復の禁止。2026-11-03）
+
+
+def _last_temp_move(sim):
+    """直前の手が温度だけの手（火力上げ／冷やし込み）ならその名前、違えば None"""
+    if not getattr(sim, "log", None):
+        return None
+    last = sim.log[-1]
+    return last[0] if last[0] in ("火力上げ", "冷やし込み") else None
+
+
+def legal_moves(sim):
     """打てる手。本会心済み・はみ出したマスは叩かない（必殺の装填中は会心確定なので本会心済みも Miss で無害＝許す）。
     ねらい系は会心で下限に届く時だけ。非会心の全部の目がはみ出す単体打ちは外す。"""
+    out = _legal_moves_raw(sim)
+    if NO_TEMP_REVERSAL:
+        prev = _last_temp_move(sim)
+        if prev is not None:
+            ban = "火力上げ" if prev == "冷やし込み" else "冷やし込み"
+            out = [mv for mv in out if not str(mv[0]).startswith(ban)]
+    return out
+
+
+def _legal_moves_raw(sim):
     out = []
     cells = sim.cells
     zt = turn_multiplier(sim.trait, sim.temp)

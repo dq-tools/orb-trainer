@@ -311,10 +311,15 @@ class Solver:
 ALLOW_LIGHT = False     # 光地金でも厳密解を使う（発光分岐込み。hidane の台本では効果ゼロ・時間 4 倍だったが、学習型の終盤は V 頼みなので試す。2026-10-27）
 
 
+ENDGAME_FOCUS_FEW = 130   # 未確定 2 マス以下なら、この集中まで厳密解（残り 1〜2 マスで学習型が 冷やし込み↔火力上げ を往復して集中を捨てていた。2026-11-03）
+
+
 def applicable(sim: Sim) -> bool:
-    if sim.focus > ENDGAME_FOCUS or (sim.trait == "光" and not ALLOW_LIGHT):
+    if sim.trait == "光" and not ALLOW_LIGHT:
         return False  # 光: 発光分岐込みで実装済みだが、ひだね200局で効果ゼロ・時間4倍のため適用外（2026-09-04）
     active = [c for c in sim.cells.values() if not c.pinned]
+    if sim.focus > (ENDGAME_FOCUS_FEW if len(active) <= 2 else ENDGAME_FOCUS):
+        return False
     if any(c.r > NEAR_R for c in active):
         return False
     return len(active) <= MAX_ACTIVE
