@@ -14,6 +14,35 @@ import sys
 import numpy as np
 
 
+F32_CELLS = False     # forward_cells のマスの 2 層を float32 で計算する案。実測は float64 の 5 倍遅かった（numpy の float32 の 3 次元 matmul が BLAS に乗らない様子。300k 局面 16 秒 対 3 秒、2026-10-30）ので既定 OFF
+DEDUP_CELLS = True       # forward_cells でマスの特徴行の重複を除いてから c1・c2 を通す（2 手読みの推論 0.53→0.21 秒/決定。値は同一。2026-10-30）
+DEDUP_MIN_ROWS = 4096    # 行数がこれ未満なら重複除去しない（unique の固定費の方が高い）
+
+
+_ROW_MULT = None
+
+
+def _unique_rows(R: np.ndarray):
+    """行の重複除去（厳密）: (first 各一意行の添字, inv 各行→一意行の番号)。
+    float64 のビット列を int64 として奇数の乗数で畳んだ鍵を unique し、鍵が同じ行が本当に同じか等値で確かめる（衝突なら void の unique に落とす）。
+    void 行の unique は argsort が遅く（29 万行で 1.4 秒）、この鍵方式は 0.3 秒（2026-10-30）"""
+    global _ROW_MULT
+    N, C = R.shape
+    if _ROW_MULT is None or len(_ROW_MULT) < C:
+        rng = np.random.default_rng(20261030)
+        _ROW_MULT = rng.integers(1, 2 ** 62, size=max(C, 32), dtype=np.int64) | 1
+    bits = np.ascontiguousarray(R).view(np.int64).reshape(N, C)
+    with np.errstate(over="ignore"):
+        key = (bits * _ROW_MULT[None, :C]).sum(1, dtype=np.int64)
+    _, first, inv = np.unique(key, return_index=True, return_inverse=True)
+    inv = inv.ravel()
+    if not np.array_equal(R[first][inv], R):                       # 鍵の衝突（まず起きない）
+        Rv = R.view(np.dtype((np.void, C * R.itemsize))).ravel()
+        _, first, inv = np.unique(Rv, return_index=True, return_inverse=True)
+        inv = inv.ravel()
+    return first, inv
+
+
 class NumpyNet:
     """npz の重みで前向き計算だけ行う（並列ワーカーで torch を読まずに済む）"""
 
@@ -27,6 +56,9 @@ class NumpyNet:
         return np.maximum(x, 0.0)
 
     def forward(self, X: np.ndarray, M: np.ndarray, G: np.ndarray) -> np.ndarray:
+        gw = self.w["g1_w"].shape[1] - 2 * self.hidden      # 重みが期待する G の幅（旧モデルを広い特徴で動かす時は切り詰める。2026-10-31）
+        if G.shape[1] > gw:
+            G = G[:, :gw]
         """X [B, MAX_CELLS, FC], M [B, MAX_CELLS], G [B, FG] → P(大成功) [B]"""
         w = self.w
         h = self._relu(X @ w["c1_w"].T + w["c1_b"])
@@ -40,6 +72,49 @@ class NumpyNet:
         z = self._relu(z @ w["g2_w"].T + w["g2_b"])
         o = z @ w["o_w"].T + w["o_b"]
         return 1.0 / (1.0 + np.exp(-o[:, 0]))
+
+
+    def forward_cells(self, X: np.ndarray, G: np.ndarray) -> np.ndarray:
+        """X [B, n, FC]（全局面が同じマス数・詰め物なし）, G [B, FG] → P(大成功) [B]。forward(pad(X)) と同じ値（2026-10-30、2 手読み用）"""
+        w = self.w
+        B = X.shape[0]
+        out = np.empty(B)
+        step = 32768                                     # 塊ごとに（[B, n, 64] の一時配列を小さく保つ。48 万局面を一度にやると 1.5GB の配列を何度も作る）
+        if F32_CELLS:                                    # マスの 2 層だけ float32（値の差は 1e-6 程度、時間は半分。2026-10-30）
+            if not hasattr(self, "_w32"):
+                self._w32 = {k: v.astype(np.float32) for k, v in w.items() if k.startswith("c")}
+            c1w, c1b, c2w, c2b = self._w32["c1_w"].T, self._w32["c1_b"], self._w32["c2_w"].T, self._w32["c2_b"]
+        else:
+            c1w, c1b, c2w, c2b = w["c1_w"].T, w["c1_b"], w["c2_w"].T, w["c2_b"]
+        n = X.shape[1]
+        H2u = inv = None
+        if DEDUP_CELLS and B * n >= DEDUP_MIN_ROWS:
+            # マスの特徴行（14 列）は 2 手読みの葉 30 万行で 1〜1.5% しか一意でない（2026-10-30 実測: 32 万行中 3〜5 千行）→
+            # 一意な行だけ c1・c2 を通し、結果 [U, hidden] を gather する。void の unique は厳密（値は全行の計算と同一、差 1e-16）
+            R = np.ascontiguousarray(X.reshape(B * n, X.shape[2]))
+            first, inv = _unique_rows(R)
+            Xu = R[first]
+            if F32_CELLS:
+                Xu = Xu.astype(np.float32)
+            Hu = np.matmul(Xu, c1w); Hu += c1b; np.maximum(Hu, 0.0, out=Hu)
+            H2u = np.matmul(Hu, c2w); H2u += c2b; np.maximum(H2u, 0.0, out=H2u)
+            H2u = H2u.astype(np.float64, copy=False)
+            inv = inv.reshape(B, n)
+        for s0 in range(0, B, step):
+            if H2u is not None:
+                h2 = H2u[inv[s0:s0 + step]]                  # [b, n, hidden]
+            else:
+                x = X[s0:s0 + step]
+                if F32_CELLS:
+                    x = x.astype(np.float32)
+                h = np.matmul(x, c1w); h += c1b; np.maximum(h, 0.0, out=h)
+                h2 = np.matmul(h, c2w); h2 += c2b; np.maximum(h2, 0.0, out=h2)
+            z = np.concatenate([h2.mean(1, dtype=np.float64), h2.max(1).astype(np.float64), G[s0:s0 + step]], axis=1)
+            z = self._relu(z @ w["g1_w"].T + w["g1_b"])
+            z = self._relu(z @ w["g2_w"].T + w["g2_b"])
+            o = z @ w["o_w"].T + w["o_b"]
+            out[s0:s0 + step] = 1.0 / (1.0 + np.exp(-o[:, 0]))
+        return out
 
 
 class StageNet:
@@ -73,6 +148,15 @@ class StageNet:
                 out[sel] = net.forward(X[sel], M[sel], G[sel])
         return out
 
+    def forward_cells(self, X, G):
+        st = self.stage_of(G)
+        out = np.zeros(len(G))
+        for k, net in enumerate(self.nets):
+            sel = st == k
+            if sel.any():
+                out[sel] = net.forward_cells(X[sel], G[sel])
+        return out
+
 
 def stage_mask(G: np.ndarray, bounds, k: int) -> np.ndarray:
     """段階 k の局面だけ True（StageNet.stage_of と同じ決め方）"""
@@ -90,13 +174,43 @@ def load_model(path: str):
     return StageNet(path) if staged else NumpyNet(path)
 
 
-def load_data(paths):
-    Xs, Ms, Gs, ys = [], [], [], []
-    for p in paths:
-        d = np.load(p)
-        Xs.append(d["X"]); Ms.append(d["M"]); Gs.append(d["G"]); ys.append(d["y"])
-    return (np.concatenate(Xs).astype(np.float32), np.concatenate(Ms).astype(np.float32),
-            np.concatenate(Gs).astype(np.float32), np.concatenate(ys).astype(np.float32))
+def expand_paths(paths):
+    """引数の展開: '@一覧.txt'（1 行 1 パス。同じ行を 2 回書けば 2 倍の重み）を中身に置き換える（2026-10-31。Windows の引数長の上限 32k を超えるため）。"""
+    out = []
+    for p in paths or []:
+        if isinstance(p, str) and p.startswith("@"):
+            for line in open(p[1:], encoding="utf-8"):
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    out.append(line)
+        else:
+            out.append(p)
+    return out
+
+
+def load_data(paths, with_weights: bool = False):
+    """npz を読んで (X, M, G, y[, w]) を返す。同じファイルが一覧に k 回あれば 1 回だけ読み、重み w=k にする（2026-11-01: 554 万局面で
+    ArrayMemoryError になったため。「自己対局は 2 倍」は行の複製でなく重みで表す）。総行数を先に数えて確保し順に埋める（concatenate の 2 倍メモリを避ける）。
+    with_weights=False の時は重みを捨てる（eval 等。複製は再現しない）"""
+    from collections import Counter
+    cnt = Counter(expand_paths(paths))
+    uniq = list(cnt)
+    shapes = []
+    for p in uniq:
+        with np.load(p) as d:
+            shapes.append((d["y"].shape[0], d["X"].shape[1], d["X"].shape[2], d["G"].shape[1]))
+    n = sum(sh[0] for sh in shapes)
+    cells, fc = shapes[0][1], shapes[0][2]
+    gw = max(sh[3] for sh in shapes)   # 旧データ（G 40）は 0 で詰める（2026-10-31 裁縫 48）
+    X = np.empty((n, cells, fc), dtype=np.float32); M = np.empty((n, cells), dtype=np.float32)
+    G = np.zeros((n, gw), dtype=np.float32); y = np.empty(n, dtype=np.float32); w = np.empty(n, dtype=np.float32)
+    i = 0
+    for p, sh in zip(uniq, shapes):
+        with np.load(p) as d:
+            k = sh[0]
+            X[i:i + k] = d["X"]; M[i:i + k] = d["M"]; G[i:i + k, :sh[3]] = d["G"]; y[i:i + k] = d["y"]; w[i:i + k] = cnt[p]
+        i += k
+    return (X, M, G, y, w) if with_weights else (X, M, G, y)
 
 
 def build_torch(fc: int, fg: int, hidden: int = 64):
@@ -161,23 +275,27 @@ def train(paths, out: str, epochs: int = 8, hidden: int = 64, lr: float = 1e-3, 
             _gpu.hold_while_running()
         except Exception as e:
             print("gpu hold を出せない:", e)
-    X, M, G, y = data if data is not None else load_data(paths)
+    if data is not None:
+        X, M, G, y = data; w = np.ones(len(y), dtype=np.float32)
+    else:
+        X, M, G, y, w = load_data(paths, with_weights=True)
     if select is not None:
         keep = select(G)
-        X, M, G, y = X[keep], M[keep], G[keep], y[keep]
+        X, M, G, y, w = X[keep], M[keep], G[keep], y[keep], w[keep]
     n = len(y)
     rng = np.random.default_rng(seed)
     perm = rng.permutation(n)
     nv = int(n * val_frac)
     va, tr = perm[:nv], perm[nv:]
-    Xt, Mt, Gt, yt = (torch.tensor(a) for a in (X, M, G, y))   # データは CPU に置き、バッチだけ GPU へ（300 万局面で 5GB 超なので VRAM に載せない）
+    Xt, Mt, Gt, yt, wt = (torch.from_numpy(np.ascontiguousarray(a)) for a in (X, M, G, y, w))   # データは CPU に置き（from_numpy＝複製なし）、バッチだけ GPU へ
     net = build_torch(X.shape[2], G.shape[1], hidden)
     if init:
         load_into(net, init)
     net = net.to(device)
     opt = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
     lossf = torch.nn.BCEWithLogitsLoss()
-    print(f"学習 {len(tr)} 局面・検証 {nv}・正例率 {y.mean():.3f}・hidden {hidden}・{device}{'・初期値 ' + init if init else ''}")
+    lossw = torch.nn.BCEWithLogitsLoss(reduction="none")   # 行の重み（一覧に 2 回あるファイル＝2 倍）つき
+    print(f"学習 {len(tr)} 局面（重みの合計 {float(w[tr].sum()):.0f}）・検証 {nv}・正例率 {y.mean():.3f}・hidden {hidden}・{device}{'・初期値 ' + init if init else ''}")
     for ep in range(epochs):
         net.train()
         rng.shuffle(tr)
@@ -186,9 +304,10 @@ def train(paths, out: str, epochs: int = 8, hidden: int = 64, lr: float = 1e-3, 
             idx = torch.tensor(tr[i:i + batch])
             opt.zero_grad()
             logit = net(Xt[idx].to(device), Mt[idx].to(device), Gt[idx].to(device))
-            loss = lossf(logit, yt[idx].to(device))
+            wb = wt[idx].to(device)
+            loss = (lossw(logit, yt[idx].to(device)) * wb).sum() / wb.sum()
             loss.backward(); opt.step()
-            tot += float(loss) * len(idx); cnt += len(idx)
+            tot += float(loss.detach()) * len(idx); cnt += len(idx)
         net.eval()
         with torch.no_grad():
             vi = torch.tensor(va)

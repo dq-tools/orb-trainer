@@ -127,6 +127,14 @@ def recommend(sim, k=TOPK):
     p_now = KF.p_great_now(sim)
     cand = {}
     moves = KF.legal_moves(sim)
+    # 1500℃ 以上はアメリーさん型（orb_policy）の手を先頭に（KajiSim と同じ混成。1000 局 81.0 対 学習型だけ 80.7、2026-11-03）
+    script_mv = None
+    try:
+        script_mv = VP.orb_script_move(sim)
+    except Exception:
+        script_mv = None
+    if script_mv is not None and script_mv not in moves and script_mv[0] != "必殺":
+        moves = [script_mv] + list(moves)
     if moves:
         vals = VP.value_of_moves(sim, NET, moves, VP.SAMPLES)
         for mv, v in zip(moves, vals):
@@ -144,6 +152,12 @@ def recommend(sim, k=TOPK):
                 exact_first = {"skill": key[0], "targets": list(key[1]), "label": _move_label(mv), "p": float(max(0.0, min(1.0, p))), "exact": True}
                 cand.pop(key, None)
     ranked = sorted(cand.values(), key=lambda x: -x["p"])
+    if script_mv is not None and exact_first is None:
+        key = (script_mv[0], tuple(script_mv[1]) if len(script_mv) > 1 else ())
+        top = [c for c in ranked if (c["skill"], tuple(c["targets"])) == key]
+        if top:
+            top[0]["label"] += "（アメリー型）"
+            ranked = top + [c for c in ranked if c is not top[0]]
     out = ([exact_first] if exact_first else []) + ranked
     out = out[:k]
     best_p = out[0]["p"] if out else 0.0

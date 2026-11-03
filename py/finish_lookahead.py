@@ -22,8 +22,8 @@ GREAT = ASSUMPTIONS["great_success_max_err"]
 
 
 def great_of(sim: Sim) -> int:
-    """大成功の誤差上限（マス数で変わる。6マス=7）。"""
-    return KS.GRADE_TABLE.get(len(sim.cells), (GREAT,))[0]
+    """大成功の誤差上限（盤面の形で変わる。6マス 3×2=7）。"""
+    return KS.great_of(sim)
 ADAPTIVE = False      # 上位手が僅差の時にロールアウトを3倍にして再評価
 ADAPTIVE_GAP = 0.06
 ADAPTIVE_TOP = 3

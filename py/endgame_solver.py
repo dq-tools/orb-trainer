@@ -38,7 +38,7 @@ PAIR = ("上下ねらい打ち", "上下打ち", "左右打ち", "ななめ打�
 class Solver:
     def __init__(self, sim: Sim):
         self.trait = sim.trait
-        self.great = KS.GRADE_TABLE.get(len(sim.cells), (ASSUMPTIONS["great_success_max_err"],))[0]  # マス数で切替（2026-10-20）
+        self.great = KS.great_of(sim)  # 形で切替（2026-10-29。GRADE_BY_LAYOUT）
         self.names = list(sim.cells.keys())
         self.idx = {n: i for i, n in enumerate(self.names)}
         self.lo = [sim.cells[n].lo for n in self.names]
@@ -53,7 +53,8 @@ class Solver:
                       "左右打ち": sim.pairs_lr, "ななめ打ち": sim.pairs_diag}
         self.quads = list(sim.quads)
         self.regen = REGEN and sim.trait in KS.MODORI_TRAITS
-        self.zc = [(sim.cells[n].lo + sim.cells[n].hi) // 2 for n in self.names]   # 再生の対象の決め方（kaji_sim: v / center）に使う中央
+        # 再生の対象の決め方（kaji_sim.modori_key と同じ: 既定は v/上限、"center" なら v/中央。2026-10-31）
+        self.zc = [(sim.cells[n].hi if ASSUMPTIONS.get("modori_pick", "hi") == "hi" else (sim.cells[n].lo + sim.cells[n].hi) // 2) for n in self.names]
         self.memo = {}
         self.nodes = 0
 
@@ -234,6 +235,9 @@ class Solver:
             raise TooBig()
         best_v = self.terminal(cells)
         best_a = None
+        if temp <= 0:                       # 0 ℃で作成は終了（mori1 2026-10-31）。これ以上の行動は無い
+            self.memo[key] = (best_v, None)
+            return best_v
         for a in self.actions(temp, focus, cells, charged, armed, lit):
             q = self.q(a, temp, focus, cells, charged, armed, lit)
             if q > best_v + 1e-12:

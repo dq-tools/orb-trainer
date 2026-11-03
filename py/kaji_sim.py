@@ -41,6 +41,8 @@ ASSUMPTIONS = {
     #   ※旧モデル(合計ダメージ比例 hissatsu_k)は廃止
     "hissatsu_per_hit": 0.006,
     "hissatsu_focus": 0,
+    "pair_v_solo": True,   # 上下打ち/上下ねらい打ち: 縦 2 マスの窓にマスが 1 つしか無い（穴）場合もその 1 マスに打てる（レーザーエッジの A・D。mori1 2026-10-31 実機確認）。左右打ちの穴は未確認なので対象外
+    "modori_pick": "hi",   # 再生の対象の決め方: "hi"=範囲外で v/上限 が最大（本物の棋譜 552 件中 551 件と一致、2026-10-31）／"center"=v/中央（旧。542 件）
     "quad_min_cells": 3,   # 2x2 の面として選べる最小のマス数（穴を含む面。グリーブは 3。4 にすると穴のある面は使わない＝旧仕様）      # 必殺（ヘパイトスの炎）押下で回復する集中。旧仕様 +30（helpfordqx blacksmith.js）は本物の棋譜で否定: GJさん 15 局（2026-10-20）、mori1さんも「必殺で回復はない」と確認
                               #   1100℃で必殺→集中 112 のまま（+30 なし）。kifu の check（消費の連鎖）も矛盾 0。要 mori1 確認
     "open_hissatsu": 0.10,    # 光の鍛冶ハンマー特殊効果: 開幕必殺チャージ率（約10%・できのよさ依存）
@@ -55,9 +57,11 @@ ASSUMPTIONS = {
     "modori_amount": (12, 16),  # 戻る量（GJさん配信 P9yRMJLHreA の緑の数字 12〜16）
     # まれに集中力回復（職人 Lv70 の特技。行動の後に集中が 10 以下だと低確率で 30 回復。画面は白く光って「+30」「なんと 集中力が 回復した！」。
     # 2026-10-29 mori1 本人の録画 よろい上 8 局目で判明。本物の棋譜の鍛冶 160 機会中 9 回 ≈ 5.6%（⚠仮。防具 3/34・道具 6/110・武器 0/16））
-    "focus_recover_p": 0.056,
+    "focus_recover_p": 0.058,        # 本物の棋譜 275 局: 最初の回復までの機会 155 回（手の後に集中 ≤10）のうち 9 回（2026-10-30 数え直し。⚠公式の数字なし）
     "focus_recover_below": 10,
     "focus_recover_amount": 30,
+    "focus_recover_once": True,      # 1 回の作成で回復は 1 回まで（mori1 2026-10-30。棋譜でも 2 回目の機会 5 回で回復 0）
+    "focus_recover_on_temp_move": True,  # 火力上げ・冷やし込みの後も判定する。mori1 は「起きないと思う」（未確認）だが、棋譜ではアメリー z_jfkjjVjeQ 6 局で 火力上げ（集中 9）の後に +30 が 1 例（機会 20 回中）あるので既定は判定する。False で mori1 の説どおり
     "light_rate": 1.0,        # 光特性: 200の倍数到達時にどこかが光る確率（mori1さん確認: 100%。2026-09-04）
     # 理想値（会心で止まる値）のばらつき。"zone"=基準値の範囲全体から一様（mori1さん 2026-10-17:
     # 「どこが基準値になるかはランダム」。実配信で超あまつゆA 180-190 が下端180で会心停止）。
@@ -65,18 +69,68 @@ ASSUMPTIONS = {
     "ideal_spread": "zone",
 }
 
-# できのよさ判定表（マス数 → (大成功上限, ★2上限, ★1上限, ★0上限)。それ超えは失敗）
-# 出典: https://cidmogero.com/2021/02/13/shokunin-daiseiko/
-#（3マス行はみいみ氏の実測 ★3:0-2/★2:3-8/★1:9-13/★0:14-23 と一致確認済み）
+# できのよさ判定表（誤差合計の上限 (大成功, ★2, ★1, ★0)。それ超えは失敗）
+# 2026-10-29 修正: 上限は**マス数ではなく種類（盤面の形）**で決まる（みいみ氏ブログ mi-mi-dqx.blazeworks.jp/archives/4728、
+# 公式ガイドブック Ver3.2 後期「職人の極意編」の表。kaji-kaisetsu の指摘）。盤面の形（item_layout の配置キー）で引き、無い形はマス数の表で代用。
+# 旧表（cidmogero、マス数で引く）とのずれ: 2×2 の ★2/★1/★0（8/13/23→9/17/29）、ヤリ・足（3→4）、ブーメラン（5→6）、8 マス（11→10）
+GRADE_BY_LAYOUT = {
+    "10/10": (0, 4, 9, 17),            # 短剣・さいほう針
+    "10/10/10": (2, 8, 13, 23),        # 片手剣・ウデ・木工刀
+    "11/10": (2, 8, 13, 23),           # ルアー
+    "11/11": (3, 9, 17, 29),           # 盾・アタマ・ツメ・錬金ランプ（2×2）
+    "10/10/10/10": (4, 10, 17, 29),    # ヤリ（縦 4）
+    "01/01/11": (4, 10, 17, 29),       # 足（L 字 4）
+    "11/11/10": (5, 13, 21, 33),       # 鍛冶ハンマー
+    "11/01/11": (6, 13, 23, 36),       # ブーメラン
+    "11/11/11": (7, 14, 25, 39),       # からだ上・ハンマー・錬金ツボ・虹色のオーブ（3×2）
+    "11/11/10/10": (7, 14, 25, 39),    # オノ
+    "11/11/11/10": (9, 16, 29, 44),    # ムチ・フライパン
+    "11/11/11/11": (10, 18, 33, 49),   # 両手剣・からだ下（4×2）
+    "11/10/10/10": (5, 13, 21, 33),    # 鎌（出典に無い。大成功 5 は mori1 の判断 2026-10-29、★2 以下は 5 マスの表からの推定 ⚠）
+}
+# マス数で引く代用表（上に無い形だけ）
 GRADE_TABLE = {
     2: (0, 4, 9, 17),
     3: (2, 8, 13, 23),
-    4: (3, 8, 13, 23),
+    4: (3, 9, 17, 29),
     5: (5, 13, 21, 33),
     6: (7, 14, 25, 39),
     7: (9, 16, 29, 44),
-    8: (11, 18, 33, 49),  # ⚠外挿（実測なし。2..7の増分パターンから推定）
+    8: (10, 18, 33, 49),
 }
+
+
+def grade_table_for(layout_key, n_cells: int) -> tuple:
+    """盤面の形（item_layout の配置キー）→ 判定表。形が表に無ければマス数で代用。"""
+    if layout_key in GRADE_BY_LAYOUT:
+        return GRADE_BY_LAYOUT[layout_key]
+    return GRADE_TABLE.get(n_cells, (ASSUMPTIONS["great_success_max_err"], 14, 25, 39))
+
+
+def grade_table_for_recipe(it: dict) -> tuple:
+    """recipes.json の 1 件 → 判定表（grid から形を出す）。"""
+    import recipes as _recipes
+    mask, n = [], 0
+    for row in _recipes.parse_grid(it["grid"]):
+        m = ""
+        for cell in row:
+            if cell and "lo" in cell:
+                m += "1"; n += 1
+            else:
+                m += "0"
+        mask.append(m)
+    return grade_table_for("/".join(mask), n)
+
+
+def grades_of(sim) -> tuple:
+    """Sim の判定表（make_item が形で決めたもの。無ければマス数で代用）。"""
+    gt = getattr(sim, "grade_table", None)
+    return gt if gt else grade_table_for(None, len(sim.cells))
+
+
+def great_of(sim) -> int:
+    """大成功の誤差上限。"""
+    return grades_of(sim)[0]
 
 
 def sample_ideal(lo: int, hi: int, rng: random.Random, center: int | None = None) -> int:
@@ -97,9 +151,9 @@ def ideal_offsets(lo: int, hi: int) -> tuple[int, ...]:
     return tuple(sorted({max(lo, min(hi, c + k)) - c for k in range(-int(sp), int(sp) + 1)}))
 
 
-def grade(n_cells: int, total_err: int) -> str:
-    """誤差合計からできのよさを返す。"""
-    g, s2, s1, s0 = GRADE_TABLE[n_cells]
+def grade(n_cells_or_sim, total_err: int) -> str:
+    """誤差合計からできのよさを返す。Sim を渡せば形の表、int（マス数）なら代用表。"""
+    g, s2, s1, s0 = GRADE_TABLE[n_cells_or_sim] if isinstance(n_cells_or_sim, int) else grades_of(n_cells_or_sim)
     if total_err <= g:
         return "大成功"
     if total_err <= s2:
@@ -290,9 +344,11 @@ class Sim:
     deterministic: bool = False      # 先読み用: 中央値ダメージ固定・会心/必殺抽選なし
     started: bool = False            # 最初の行動を済ませたか（集中力変化の「最初の手は消費そのまま」用。clone にも写す。log は clone で空になるため）
     pairs_v: list = None
+    pairs_v_solo: list = None   # 穴のある縦の窓の 1 マスの組（上下打ち/上下ねらい打ちの対象。特徴量の計算では使わない）
     pairs_lr: list = None
     pairs_diag: list = None
     quads: list = None
+    grade_table: tuple = None        # できのよさの判定表（形で決まる。make_item が入れる。None ならマス数で代用。2026-10-29）
 
     # 6マス A,B/C,D/E,F 配置のデフォルト（後方互換）
     PAIRS_V = [("A", "C"), ("C", "E"), ("B", "D"), ("D", "F")]
@@ -303,6 +359,8 @@ class Sim:
     def __post_init__(self):
         if self.pairs_v is None:
             self.pairs_v = list(self.PAIRS_V)
+        if self.pairs_v_solo is None:
+            self.pairs_v_solo = []
         if self.pairs_lr is None:
             self.pairs_lr = list(self.PAIRS_LR)
         if self.pairs_diag is None:
@@ -311,6 +369,8 @@ class Sim:
             self.quads = list(self.QUADS)
 
     def can_use(self, skill: str) -> bool:
+        if self.temp <= 0:          # 温度が 0 ℃になると作成はそこで終了（mori1 2026-10-31。300 ℃での冷やし込み・50 ℃での打撃は最後の行動になる）
+            return False
         return self.focus >= cost_of(skill, self.trait, self.temp, first=not self.started)
 
     def hit_one(self, name: str, mult_key: str, crit_mult: float, forced_crit=False):
@@ -371,8 +431,11 @@ class Sim:
             for i, name in enumerate(targets):
                 results.append((name, *self.hit_one(name, s["mult"], s["crit"], forced)))
         self.focus -= cost
-        # まれに集中力回復（Lv70 特技）: 行動の後に集中が focus_recover_below 以下なら低確率で +30（2026-10-29、本物の棋譜 9/160）
+        # まれに集中力回復（Lv70 特技）: 行動の後に集中が focus_recover_below 以下なら低確率で +30（2026-10-29、本物の棋譜 9/155）。
+        # 1 回の作成で 1 回まで（focus_recover_once）。温度だけの手（火力上げ・冷やし込み）の後に判定するかは focus_recover_on_temp_move（2026-10-30 mori1・kaji-kaisetsu）
         if (self.focus <= ASSUMPTIONS["focus_recover_below"] and not self.deterministic
+                and not (ASSUMPTIONS["focus_recover_once"] and getattr(self, "focus_recovered", 0) >= 1)
+                and (ASSUMPTIONS["focus_recover_on_temp_move"] or results)
                 and self.rng.random() < ASSUMPTIONS["focus_recover_p"]):
             self.focus = min(ASSUMPTIONS["focus_max"], self.focus + ASSUMPTIONS["focus_recover_amount"])
             self.focus_recovered = getattr(self, "focus_recovered", 0) + 1
@@ -383,7 +446,7 @@ class Sim:
         if self.trait in MODORI_TRAITS and self.temp % 200 == 0 and self.temp > 0 and not self.deterministic                 and self.rng.random() < ASSUMPTIONS["modori_rate"]:
             # 範囲に入っていないマスのうち、割合がいちばん進んだマス（範囲内のマスは戻らない。GJさん 8局目で全マス範囲内の 800℃は戻りなし）
             cand = [n for n in self.cells if not (self.cells[n].lo <= self.cells[n].v <= self.cells[n].hi)]
-            name = max(cand, key=lambda n: self.cells[n].v / max(1, self.cells[n].center)) if cand else None
+            name = max(cand, key=lambda n: modori_key(self.cells[n])) if cand else None
         else:
             name = None
         if name:
@@ -424,7 +487,7 @@ class Sim:
                        for k, v in self.cells.items()},
                 trait=self.trait, temp=self.temp, focus=self.focus,
                 rng=rng or random.Random(self.rng.random()),
-                pairs_v=self.pairs_v, pairs_lr=self.pairs_lr,
+                pairs_v=self.pairs_v, pairs_v_solo=list(self.pairs_v_solo or []), pairs_lr=self.pairs_lr,
                 pairs_diag=self.pairs_diag, quads=self.quads)
         c.hissatsu_charged = self.hissatsu_charged
         c.hissatsu_armed = self.hissatsu_armed
@@ -433,6 +496,8 @@ class Sim:
         # （mori1: 先読みは「必殺が来るかも」の通常前提で計算する）
         c.lit_cell = self.lit_cell
         c.started = self.started
+        c.grade_table = self.grade_table
+        c.focus_recovered = getattr(self, "focus_recovered", 0)   # 回復は 1 局 1 回まで（クローンにも引き継ぐ。2026-10-30）
         return c
 
     def total_error(self) -> int:
@@ -440,6 +505,13 @@ class Sim:
 
     def all_in_zone(self) -> bool:
         return all(c.in_zone for c in self.cells.values())
+
+
+def modori_key(c):
+    """再生の対象を選ぶ時の「割合」。ASSUMPTIONS["modori_pick"]: "hi"=v/上限（既定）、"center"=v/中央。"""
+    if ASSUMPTIONS.get("modori_pick", "hi") == "hi":
+        return c.v / max(1, c.hi)
+    return c.v / max(1, c.center)
 
 
 def make_item(item_name: str, rng: random.Random | None = None) -> Sim:
@@ -455,18 +527,27 @@ def make_item(item_name: str, rng: random.Random | None = None) -> Sim:
     grid = _recipes.parse_grid(it["grid"])
     cells = {}
     pos = {}
-    idx = 0
+    names = cell_names_for([(r, c) for r, row in enumerate(grid) for c, cell in enumerate(row) if cell and "lo" in cell])   # 欠けも数える・空の列は数えない（2026-11-03）
     for r, row in enumerate(grid):
         for cidx, cell in enumerate(row):
             if cell and "lo" in cell:
-                name = chr(ord("A") + idx)
+                name = names[(r, cidx)]
                 ideal = sample_ideal(cell["lo"], cell["hi"], rng)
                 cells[name] = Cell(cell["lo"], cell["hi"], ideal_true=ideal)
                 pos[name] = (r, cidx)
-                idx += 1
     at = {v: k for k, v in pos.items()}
     pairs_v = [(at[(r, c)], at[(r + 1, c)]) for (r, c) in pos.values()
                if (r + 1, c) in at]
+    pairs_v_solo = []
+    if ASSUMPTIONS.get("pair_v_solo", True):
+        rows_all = len(grid)
+        for (r, c), name in list(at.items()):
+            # 上の窓 (r-1, r) と下の窓 (r, r+1) のうち、相手の位置が盤面の中で穴（マスが無い）なら 1 マスの組
+            if r - 1 >= 0 and (r - 1, c) not in at:
+                pairs_v_solo.append((name,))
+            elif r + 1 < rows_all and (r + 1, c) not in at:
+                pairs_v_solo.append((name,))
+    pairs_v_solo = sorted(set(pairs_v_solo))
     pairs_lr = [(at[(r, c)], at[(r, c + 1)]) for (r, c) in pos.values()
                 if (r, c + 1) in at]
     pairs_diag = [(at[(r + 1, c)], at[(r, c + 1)]) for (r, c) in pos.values()
@@ -483,30 +564,41 @@ def make_item(item_name: str, rng: random.Random | None = None) -> Sim:
                 quads.append(tuple(have))
     trait = it.get("trait", "")
     sim = Sim(cells=cells, trait=trait, rng=rng,
-              pairs_v=sorted(set(pairs_v)), pairs_lr=sorted(set(pairs_lr)),
+              pairs_v=sorted(set(pairs_v)), pairs_v_solo=pairs_v_solo, pairs_lr=sorted(set(pairs_lr)),
               pairs_diag=sorted(set(pairs_diag)), quads=sorted(set(quads)))
+    sim.grade_table = grade_table_for_recipe(it)
     if rng.random() < ASSUMPTIONS["open_hissatsu"]:
         sim.hissatsu_charged = True
     return sim
+
+
+def cell_names_for(occupied):
+    """マスのある (行, 列) の一覧 → {(行, 列): 記号}。左上から行の順に、欠けたマスも数えて記号を割り振る（レーザーエッジ A B/(C) D/E F）が、
+    マスが 1 つも無い列は数えない（1 列の商材は A,B,C。mori1 2026-11-03）。"""
+    cols = sorted({c for _, c in occupied})
+    ci = {c: i for i, c in enumerate(cols)}
+    width = len(cols)
+    return {(r, c): chr(ord("A") + r * width + ci[c]) for r, c in occupied}
 
 
 def item_layout(item_name: str):
     """商材のマス配置 → (配置キー, {マス名: (行, 列)})。
 
     配置キーは行ごとにマスの有無を並べた文字列（6マス='11/11/11'、2×2='11/11'、ブーツ='01/01/11' など）。
-    付番は make_item と同じ（左上から行→列の順に A, B, …）。GUI の盤面の並びと画面読込の枠（roi_config の layouts）はこのキーで持つ（2026-10-22）。
+    付番は make_item と同じ（左上から行→列の順に A, B, …。欠けたマスも数える＝レーザーエッジは A,B,D,E,F。2026-11-03）。GUI の盤面の並びと画面読込の枠（roi_config の layouts）はこのキーで持つ（2026-10-22）。
     """
     import recipes as _recipes
     _, it = _recipes.find(item_name)
     if it is None:
         raise KeyError(item_name)
-    pos, mask, idx = {}, [], 0
-    for r, row in enumerate(_recipes.parse_grid(it["grid"])):
+    grid = _recipes.parse_grid(it["grid"])
+    names = cell_names_for([(r, c) for r, row in enumerate(grid) for c, cell in enumerate(row) if cell and "lo" in cell])   # make_item と同じ
+    pos, mask = {}, []
+    for r, row in enumerate(grid):
         m = ""
         for c, cell in enumerate(row):
             if cell and "lo" in cell:
-                pos[chr(ord("A") + idx)] = (r, c)
-                idx += 1
+                pos[names[(r, c)]] = (r, c)
                 m += "1"
             else:
                 m += "0"
