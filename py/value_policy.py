@@ -579,7 +579,9 @@ def _is_item(sim: Sim, item: str) -> bool:
 
 
 def hidane_script_move(sim: Sim):
-    if HIDANE_SCRIPT_MIN_TEMP is None or sim.trait != "光" or len(sim.cells) != 6 or sim.temp < HIDANE_SCRIPT_MIN_TEMP:
+    if HIDANE_SCRIPT_MIN_TEMP is None or sim.trait != "光" or len(sim.cells) != 6:
+        return None
+    if sim.temp < HIDANE_SCRIPT_MIN_TEMP and not all(c.v == 0 for c in sim.cells.values()):   # 開幕（火力上げ×4）は温度に関わらず台本
         return None
     if not _is_item(sim, "超ようせいのひだね"):
         return None
@@ -629,7 +631,10 @@ ORB_SCRIPT_MIN_TEMP = 1500      # 虹色のオーブ: この温度以上は手�
 
 
 def orb_script_move(sim: Sim):
-    if ORB_SCRIPT_MIN_TEMP is None or sim.trait not in ("再生", "戻り") or len(sim.cells) != 6 or sim.temp < ORB_SCRIPT_MIN_TEMP:
+    if ORB_SCRIPT_MIN_TEMP is None or sim.trait not in ("再生", "戻り") or len(sim.cells) != 6:
+        return None
+    opening = all(c.v == 0 for c in sim.cells.values())     # 開幕（火力上げ×2 → 1600 超4連）は温度に関わらず台本
+    if sim.temp < ORB_SCRIPT_MIN_TEMP and not opening:
         return None
     if not _is_item(sim, "虹色のオーブ"):
         return None
